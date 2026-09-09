@@ -1,0 +1,292 @@
+"use client";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabaseBrowser } from "@/lib/supabaseClient";
+import Nav from "@/components/Nav";
+
+export default function CommissionerPage() {
+  const supabase = supabaseBrowser();
+  const [loading, setLoading] = useState(true);
+  const [isCommissioner, setIsCommissioner] = useState(false);
+  const [leagueId, setLeagueId] = useState(null);
+  const [leagueName, setLeagueName] = useState("");
+  const [myId, setMyId] = useState(null);
+  const [weeks, setWeeks] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [selectedWeek, setSelectedWeek] = useState(null);
+  const [games, setGames] = useState([]);
+  const [picks, setPicks] = useState([]);
+  const [warning, setWarning] = useState(null);
+  const [addEmail, setAddEmail] = useState("");
+  const [addError, setAddError] = useState(null);
+  const [confirmDeleteText, setConfirmDeleteText] = useState("");
+  const router = useRouter();
+
+  // new-week / new-game form state
+  const [newWeekLabel, setNewWeekLabel] = useState("");
+  const [newWeekNumber, setNewWeekNumber] = useState("");
+  const [newGame, setNewGame] = useState({ home_team: "", away_team: "", kickoff_at: "", home_score: "", away_score: "", ref_spread_home: "", status: "final" });
+
+  const load = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    setMyId(user.id);
+    const { data: membership } = await supabase.from("league_members").select("league_id, role").eq("user_id", user.id).limit(1).single();
+    if (!membership || membership.role !== "commissioner") { setIsCommissioner(false); setLoading(false); return; }
+    setIsCommissioner(true);
+    setLeagueId(membership.league_id);
+
+    const { data: league } = await supabase.from("leagues").select("name").eq("id", membership.league_id).single();
+    setLeagueName(league?.name || "");
+
+    const { data: leagueWeeks } = await supabase.from("weeks").select("*").eq("league_id", membership.league_id).order("week_number");
+    setWeeks(leagueWeeks || []);
+    setSelectedWeek((prev) => prev || leagueWeeks?.[leagueWeeks.length - 1]?.id || null);
+
+    const { data: leagueMembers } = await supabase.from("league_members").select("user_id, role, profiles(display_name, email)").eq("league_id", membership.league_id);
+    setMembers((leagueMembers || []).map((m) => ({ user_id: m.user_id, display_name: m.profiles?.display_name, email: m.profiles?.email, role: m.role })));
+
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const addMemberByEmail = async () => {
+    setAddError(null);
+    if (!addEmail) return;
+    const { data: profile } = await supabase.from("profiles").select("id, display_name").eq("email", addEmail.trim()).maybeSingle();
+    if (!profile) {
+      setAddError("No one's signed in with that email yet -- have them visit the site and sign in once first, then try again.");
+      return;
+    }
+    const { error } = await supabase.from("league_members").insert({ league_id: leagueId, user_id: profile.id, role: "member" });
+    if (error) { setAddError(error.message); return; }
+    setAddEmail("");
+    load();
+  };
+
+  const removeMember = async (userId) => {
+    if (!window.confirm("Remove this person from the league? Their past picks stay in the history, but they'll lose access.")) return;
+    await supabase.from("league_members").delete().eq("league_id", leagueId).eq("user_id", userId);
+    load();
+  };
+
+  const deleteLeague = async () => {
+    if (confirmDeleteText !== leagueName) return;
+    const { error } = await supabase.from("leagues").delete().eq("id", leagueId);
+    if (error) { alert(error.message); return; }
+    router.push("/create-league");
+  };
+
+  const loadWeekData = async (weekId) => {
+    if (!weekId) return;
+    const { data: weekGames } = await supabase.from("games").select("*").eq("week_id", weekId).order("kickoff_at");
+    setGames(weekGames || []);
+    const gameIds = (weekGames || []).map((g) => g.id);
+    const { data: weekPicks } = gameIds.length ? await supabase.from("picks").select("*").in("game_id", gameIds) : { data: [] };
+    setPicks(weekPicks || []);
+  };
+  useEffect(() => { loadWeekData(selectedWeek); }, [selectedWeek]);
+
+  const createWeek = async () => {
+    if (!newWeekLabel || !newWeekNumber) return;
+    const { data, error } = await supabase.from("weeks").insert({
+      league_id: leagueId, label: newWeekLabel, week_number: Number(newWeekNumber), type: "regular",
+    }).select().single();
+    if (error) { alert(error.message); return; }
+    setNewWeekLabel(""); setNewWeekNumber("");
+    await load();
+    setSelectedWeek(data.id);
+  };
+
+  const addGame = async () => {
+    const g = newGame;
+    if (!g.home_team || !g.away_team || !g.kickoff_at) { alert("Fill in both teams and kickoff time."); return; }
+    const { error } = await supabase.from("games").insert({
+      week_id: selectedWeek,
+      home_team: g.home_team.toUpperCase(),
+      away_team: g.away_team.toUpperCase(),
+      kickoff_at: new Date(g.kickoff_at).toISOString(),
+      status: g.status,
+      home_score: g.home_score === "" ? null : Number(g.home_score),
+      away_score: g.away_score === "" ? null : Number(g.away_score),
+      ref_spread_home: g.ref_spread_home === "" ? null : Number(g.ref_spread_home),
+    });
+    if (error) { alert(error.message); return; }
+    setNewGame({ home_team: "", away_team: "", kickoff_at: "", home_score: "", away_score: "", ref_spread_home: "", status: "final" });
+    loadWeekData(selectedWeek);
+  };
+
+  const pickFor = (userId, gameId) => picks.find((p) => p.user_id === userId && p.game_id === gameId);
+  const pickCount = (userId) => picks.filter((p) => p.user_id === userId).length;
+
+  const setPick = async (game, userId, team, line) => {
+    const existing = pickFor(userId, game.id);
+    if (!existing && pickCount(userId) >= 5) {
+      setWarning(`${members.find((m) => m.user_id === userId)?.display_name} already has 5 picks this week. Remove one before adding another.`);
+      return;
+    }
+    setWarning(null);
+    const { error } = await supabase.from("picks").upsert({
+      id: existing?.id,
+      game_id: game.id,
+      user_id: userId,
+      team,
+      line,
+      source: existing ? "commissioner_correction" : "commissioner_backfill",
+      entered_by: myId,
+    }, { onConflict: "game_id,user_id" });
+    if (error) { alert(error.message); return; }
+    loadWeekData(selectedWeek);
+  };
+
+  const clearPick = async (game, userId) => {
+    const existing = pickFor(userId, game.id);
+    if (!existing) return;
+    await supabase.from("picks").delete().eq("id", existing.id);
+    setWarning(null);
+    loadWeekData(selectedWeek);
+  };
+
+  if (loading) return <div className="cc-body">Loading&hellip;</div>;
+  if (!isCommissioner) return (
+    <>
+      <Nav isCommissioner={false} />
+      <div className="cc-body">Only league commissioners can see this page.</div>
+    </>
+  );
+
+  return (
+    <>
+      <Nav isCommissioner={true} />
+      <div className="cc-body">
+        <div className="cc-weeklabel" style={{ display: "block", marginBottom: 10 }}>Commissioner Tools</div>
+        <p className="cc-hiddennote" style={{ marginTop: 0 }}>
+          Use this to backfill weeks played before the league started using the site, or to correct a mistake in the
+          current week. Each pick stores each person's own line, and there's no lock/hide behavior here -- you're
+          editing the underlying data directly.
+        </p>
+
+        <div className="cc-scopetoggle">
+          {weeks.map((w) => <button key={w.id} className={"cc-scopebtn" + (selectedWeek === w.id ? " active" : "")} onClick={() => setSelectedWeek(w.id)}>{w.label}</button>)}
+        </div>
+
+        <details style={{ marginBottom: 18 }} open>
+          <summary className="cc-namelink" style={{ cursor: "pointer" }}>League members ({members.length})</summary>
+          <div style={{ marginTop: 10 }}>
+            {members.map((m) => (
+              <div className="cc-leaguepickrow" key={m.user_id}>
+                <span>{m.display_name} {m.role === "commissioner" && <span className="cc-badge" style={{ marginLeft: 6, marginBottom: 0 }}>commissioner</span>}</span>
+                {m.user_id !== myId && <button className="cc-namelink" onClick={() => removeMember(m.user_id)}>Remove</button>}
+              </div>
+            ))}
+            <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+              <input placeholder="family.member@email.com" value={addEmail} onChange={(e) => setAddEmail(e.target.value)} style={{ padding: 8, flex: 1, minWidth: 200 }} />
+              <button className="cc-savebtn" onClick={addMemberByEmail}>Add member</button>
+            </div>
+            {addError && <div className="cc-warning">{addError}</div>}
+            <p className="cc-hiddennote">They need to have visited the site and signed in at least once before you can add them by email.</p>
+          </div>
+        </details>
+
+        <details style={{ marginBottom: 18 }}>
+          <summary className="cc-namelink" style={{ cursor: "pointer" }}>+ Create a new week</summary>
+          <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
+            <input placeholder="Label, e.g. Week 3" value={newWeekLabel} onChange={(e) => setNewWeekLabel(e.target.value)} style={{ padding: 8 }} />
+            <input placeholder="Week #" type="number" value={newWeekNumber} onChange={(e) => setNewWeekNumber(e.target.value)} style={{ padding: 8, width: 80 }} />
+            <button className="cc-savebtn" onClick={createWeek}>Create week</button>
+          </div>
+        </details>
+
+        {selectedWeek && (
+          <>
+            <details style={{ marginBottom: 18 }}>
+              <summary className="cc-namelink" style={{ cursor: "pointer" }}>+ Add a game to this week</summary>
+              <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
+                <input placeholder="Home (e.g. PHI)" value={newGame.home_team} onChange={(e) => setNewGame({ ...newGame, home_team: e.target.value })} style={{ padding: 8, width: 90 }} />
+                <input placeholder="Away (e.g. DAL)" value={newGame.away_team} onChange={(e) => setNewGame({ ...newGame, away_team: e.target.value })} style={{ padding: 8, width: 90 }} />
+                <input type="datetime-local" value={newGame.kickoff_at} onChange={(e) => setNewGame({ ...newGame, kickoff_at: e.target.value })} style={{ padding: 8 }} />
+                <input placeholder="Home line" type="number" step="0.5" value={newGame.ref_spread_home} onChange={(e) => setNewGame({ ...newGame, ref_spread_home: e.target.value })} style={{ padding: 8, width: 90 }} />
+                <select value={newGame.status} onChange={(e) => setNewGame({ ...newGame, status: e.target.value })} style={{ padding: 8 }}>
+                  <option value="scheduled">Scheduled (live week)</option>
+                  <option value="final">Final (backfilled)</option>
+                </select>
+                {newGame.status === "final" && (
+                  <>
+                    <input placeholder="Home score" type="number" value={newGame.home_score} onChange={(e) => setNewGame({ ...newGame, home_score: e.target.value })} style={{ padding: 8, width: 90 }} />
+                    <input placeholder="Away score" type="number" value={newGame.away_score} onChange={(e) => setNewGame({ ...newGame, away_score: e.target.value })} style={{ padding: 8, width: 90 }} />
+                  </>
+                )}
+                <button className="cc-savebtn" onClick={addGame}>Add game</button>
+              </div>
+            </details>
+
+            <div className="cc-gridwrap">
+              <table className="cc-grid">
+                <thead><tr><th>Game</th>{members.map((m) => <th key={m.user_id}>{m.display_name}</th>)}</tr></thead>
+                <tbody>
+                  {games.map((g) => (
+                    <tr key={g.id}>
+                      <td className="name-cell">{g.home_team}/{g.away_team}<br /><span style={{ color: "var(--text-dim)", fontFamily: "Inter, sans-serif", fontSize: 11 }}>{g.status === "final" ? `${g.home_team} ${g.home_score} – ${g.away_team} ${g.away_score}` : "not played yet"}</span></td>
+                      {members.map((m) => {
+                        const p = pickFor(m.user_id, g.id);
+                        return (
+                          <td key={m.user_id}>
+                            <div className="cc-bfcell">
+                              <select value={p?.team || ""} onChange={(e) => {
+                                const team = e.target.value;
+                                if (!team) { clearPick(g, m.user_id); return; }
+                                const dflt = team === g.home_team ? g.ref_spread_home : -g.ref_spread_home;
+                                setPick(g, m.user_id, team, p && p.team === team ? p.line : (dflt ?? 0));
+                              }}>
+                                <option value="">—</option>
+                                <option value={g.home_team}>{g.home_team}</option>
+                                <option value={g.away_team}>{g.away_team}</option>
+                              </select>
+                              {p && (
+                                <div className="cc-lineinput">
+                                  <span className="sign">{p.line > 0 ? "+" : ""}</span>
+                                  <input type="number" step="0.5" value={p.line} onChange={(e) => setPick(g, m.user_id, p.team, parseFloat(e.target.value))} />
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                  <tr>
+                    <td className="name-cell">Picks used</td>
+                    {members.map((m) => <td key={m.user_id} className="cc-num">{pickCount(m.user_id)}/5</td>)}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            {warning && <div className="cc-warning">⚠ {warning}</div>}
+          </>
+        )}
+
+        <details style={{ marginTop: 40, borderTop: "1px solid var(--loss)", paddingTop: 16 }}>
+          <summary className="cc-namelink" style={{ cursor: "pointer", color: "#E58C7C" }}>Danger zone</summary>
+          <div style={{ marginTop: 10 }}>
+            <p className="cc-hiddennote" style={{ marginTop: 0 }}>
+              Deleting the league permanently removes every week, game, and pick in it -- there's no undo. Useful
+              for clearing out a test league before you invite everyone for real.
+            </p>
+            <div className="cc-field">
+              <label>Type the league name ({leagueName}) to confirm</label>
+              <input value={confirmDeleteText} onChange={(e) => setConfirmDeleteText(e.target.value)} />
+            </div>
+            <button
+              className="cc-savebtn"
+              style={{ background: "var(--loss)", color: "#fff" }}
+              disabled={confirmDeleteText !== leagueName}
+              onClick={deleteLeague}
+            >
+              Delete this league
+            </button>
+          </div>
+        </details>
+      </div>
+    </>
+  );
+}

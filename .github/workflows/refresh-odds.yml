@@ -1,0 +1,14 @@
+name: Refresh odds
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  refresh-odds:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call refresh-odds endpoint
+        run: |
+          curl -sf -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "${{ secrets.SITE_URL }}/api/cron/refresh-odds"
