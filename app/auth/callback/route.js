@@ -10,5 +10,7 @@ export async function GET(request) {
     await supabase.auth.exchangeCodeForSession(code);
   }
 
-  return NextResponse.redirect(`${origin}/picks`);
+  // Send to the root page, which checks whether this person already
+  // belongs to a league and routes to /create-league or /picks accordingly.
+  return NextResponse.redirect(`${origin}/`);
 }

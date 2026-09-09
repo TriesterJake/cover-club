@@ -89,7 +89,12 @@ export default function PicksPage() {
   };
 
   if (loading) return <div className="cc-body">Loading&hellip;</div>;
-  if (!week) return <div className="cc-body">No week has been set up yet -- ask your commissioner.</div>;
+  if (!week) return (
+    <div className="cc-body">
+      No week has been set up yet -- if you're the commissioner, head to Commissioner Tools to create one.
+      Don't see that tab, or don't have a league yet? <a href="/create-league" style={{ color: "var(--accent)" }}>Create a league here</a>.
+    </div>
+  );
 
   return (
     <>
