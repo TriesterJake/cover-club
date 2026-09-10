@@ -1,99 +1,65 @@
 "use client";
 import { useEffect, useState } from "react";
-import { supabaseBrowser } from "@/lib/supabaseClient";
 import { fmtLine, gradePick } from "@/lib/grading";
 import Nav from "@/components/Nav";
 
 export default function PicksPage() {
-  const supabase = supabaseBrowser();
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState(null);
   const [isCommissioner, setIsCommissioner] = useState(false);
   const [week, setWeek] = useState(null);
   const [games, setGames] = useState([]);
-  const [picks, setPicks] = useState([]);        // every pick visible to me on this week's games
-  const [members, setMembers] = useState([]);    // { user_id, display_name }
-  const [picksUsed, setPicksUsed] = useState(0);
+  const [picks, setPicks] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [hasLeague, setHasLeague] = useState(true);
 
   const load = async () => {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    setUserId(user.id);
-
-    const { data: membership } = await supabase
-      .from("league_members")
-      .select("league_id, role")
-      .eq("user_id", user.id)
-      .limit(1)
-      .single();
-    if (!membership) { setLoading(false); return; }
-    setIsCommissioner(membership.role === "commissioner");
-
-    const { data: currentWeek } = await supabase
-      .from("weeks")
-      .select("*")
-      .eq("league_id", membership.league_id)
-      .order("week_number", { ascending: false })
-      .limit(1)
-      .single();
-    setWeek(currentWeek);
-    if (!currentWeek) { setLoading(false); return; }
-
-    const { data: weekGames } = await supabase
-      .from("games")
-      .select("*")
-      .eq("week_id", currentWeek.id)
-      .order("kickoff_at", { ascending: true });
-    setGames(weekGames || []);
-
-    const gameIds = (weekGames || []).map((g) => g.id);
-    const { data: visiblePicks } = gameIds.length
-      ? await supabase.from("picks").select("*").in("game_id", gameIds)
-      : { data: [] };
-    setPicks(visiblePicks || []);
-    setPicksUsed((visiblePicks || []).filter((p) => p.user_id === user.id).length);
-
-    const { data: leagueMembers } = await supabase
-      .from("league_members")
-      .select("user_id, profiles(display_name)")
-      .eq("league_id", membership.league_id);
-    setMembers((leagueMembers || []).map((m) => ({ user_id: m.user_id, display_name: m.profiles?.display_name })));
-
+    const res = await fetch("/api/week-data");
+    const data = await res.json();
+    setUserId(data.userId);
+    setHasLeague(!!data.membership);
+    setIsCommissioner(data.membership?.role === "commissioner");
+    setWeek(data.week || null);
+    setGames(data.games || []);
+    setPicks(data.picks || []);
+    setMembers(data.members || []);
     setLoading(false);
   };
-
   useEffect(() => { load(); }, []);
 
   const myPick = (gameId) => picks.find((p) => p.game_id === gameId && p.user_id === userId);
   const othersPicks = (gameId) => picks.filter((p) => p.game_id === gameId && p.user_id !== userId);
   const nameFor = (uid) => (uid === userId ? "You" : members.find((m) => m.user_id === uid)?.display_name || "Someone");
+  const picksUsed = picks.filter((p) => p.user_id === userId).length;
 
   const submitPick = async (game, team) => {
     const line = team === game.home_team ? game.ref_spread_home : -game.ref_spread_home;
     if (!window.confirm(`Lock in ${team} ${fmtLine(line)}? This can't be changed once submitted.`)) return;
-    const { error } = await supabase.from("picks").insert({
-      game_id: game.id,
-      user_id: userId,
-      team,
-      line,
-      source: "member_submitted",
+    const res = await fetch("/api/picks/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gameId: game.id, team, line }),
     });
-    if (error) {
-      alert(error.message.includes("row-level security")
-        ? "Couldn't lock that pick in -- you may already have 5 picks this week, or the game has started."
-        : error.message);
-      return;
-    }
+    const body = await res.json();
+    if (!res.ok) { alert(body.error || "Something went wrong"); return; }
     load();
   };
 
-  if (loading) return <div className="cc-body">Loading&hellip;</div>;
+  if (loading) return <><Nav isCommissioner={isCommissioner} /><div className="cc-body">Loading&hellip;</div></>;
+  if (!hasLeague) return (
+    <>
+      <Nav isCommissioner={false} />
+      <div className="cc-body">
+        You don't have a league yet. <a href="/create-league" style={{ color: "var(--accent)" }}>Create one here</a>.
+      </div>
+    </>
+  );
   if (!week) return (
-    <div className="cc-body">
-      No week has been set up yet -- if you're the commissioner, head to Commissioner Tools to create one.
-      Don't see that tab, or don't have a league yet? <a href="/create-league" style={{ color: "var(--accent)" }}>Create a league here</a>.
-    </div>
+    <>
+      <Nav isCommissioner={isCommissioner} />
+      <div className="cc-body">No week has been set up yet -- if you're the commissioner, head to Commissioner Tools to create one.</div>
+    </>
   );
 
   return (
@@ -133,7 +99,6 @@ export default function PicksPage() {
                   <div className={"cc-pickbox" + (grade ? " " + grade : "")}>
                     <div className="cc-pickbox-label">Your pick</div>
                     <div className="cc-pickbox-team">{pick.team} <span className="cc-num">{fmtLine(pick.line)}</span></div>
-                    {game.status === "live" && <div className="cc-pickbox-sub"><span className={"cc-coverdot " + gradePick({ ...game, status: "final" }, pick)}></span>live</div>}
                   </div>
                 )}
                 {!pick && <div className="cc-hiddennote">You didn't submit a pick for this game.</div>}
@@ -149,7 +114,6 @@ export default function PicksPage() {
             );
           }
 
-          // scheduled and not yet kicked off
           return (
             <div className="cc-game" key={game.id}>
               <div className="cc-gamehead">
