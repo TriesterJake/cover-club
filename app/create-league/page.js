@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseClient";
+import Nav from "@/components/Nav";
 
 export default function CreateLeaguePage() {
   const supabase = supabaseBrowser();
@@ -38,7 +39,9 @@ export default function CreateLeaguePage() {
   };
 
   return (
-    <div className="cc-body" style={{ maxWidth: 440, paddingTop: 60 }}>
+    <>
+      <Nav isCommissioner={false} />
+      <div className="cc-body" style={{ maxWidth: 440, paddingTop: 40 }}>
       <h1 className="cc-title">Create your league</h1>
       <p className="cc-sub">You'll be the commissioner &mdash; you can add family members and backfill past weeks once it's set up.</p>
       <form onSubmit={create}>
@@ -57,6 +60,7 @@ export default function CreateLeaguePage() {
         {error && <div className="cc-warning">{error}</div>}
         <button className="cc-savebtn" type="submit" disabled={creating}>{creating ? "Creating…" : "Create league"}</button>
       </form>
-    </div>
+      </div>
+    </>
   );
 }
