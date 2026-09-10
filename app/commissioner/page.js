@@ -44,6 +44,9 @@ export default function CommissionerPage() {
   // new-week / new-game form state
   const [newWeekLabel, setNewWeekLabel] = useState("");
   const [newWeekNumber, setNewWeekNumber] = useState("");
+  const [newWeekType, setNewWeekType] = useState("regular");
+  const [newWeekStart, setNewWeekStart] = useState("");
+  const [newWeekEnd, setNewWeekEnd] = useState("");
   const [newGame, setNewGame] = useState({ home_team: "", away_team: "", kickoff_at: "", home_score: "", away_score: "", ref_spread_home: "", status: "final" });
   const [seasonStartDate, setSeasonStartDate] = useState("");
   const [seasonSetupMsg, setSeasonSetupMsg] = useState(null);
@@ -124,10 +127,11 @@ export default function CommissionerPage() {
   const createWeek = async () => {
     if (!newWeekLabel || !newWeekNumber) return;
     const { data, error } = await supabase.from("weeks").insert({
-      league_id: leagueId, label: newWeekLabel, week_number: Number(newWeekNumber), type: "regular",
+      league_id: leagueId, label: newWeekLabel, week_number: Number(newWeekNumber), type: newWeekType,
+      start_date: newWeekStart || null, end_date: newWeekEnd || null,
     }).select().single();
     if (error) { alert(error.message); return; }
-    setNewWeekLabel(""); setNewWeekNumber("");
+    setNewWeekLabel(""); setNewWeekNumber(""); setNewWeekType("regular"); setNewWeekStart(""); setNewWeekEnd("");
     await load();
     setSelectedWeek(data.id);
   };
@@ -255,9 +259,21 @@ export default function CommissionerPage() {
 
         <details style={{ marginBottom: 18 }}>
           <summary className="cc-namelink" style={{ cursor: "pointer" }}>+ Create a single new week</summary>
-          <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
-            <input placeholder="Label, e.g. Week 3" value={newWeekLabel} onChange={(e) => setNewWeekLabel(e.target.value)} style={{ padding: 8 }} />
+          <p className="cc-hiddennote" style={{ marginTop: 8 }}>
+            This is what you'll use for playoff weeks once the regular season ends -- set type to "Wild Card" or
+            "Divisional" and the odds/schedule sync will automatically pull in the real playoff matchups from ESPN
+            as soon as they're announced, same as it does for the regular season.
+          </p>
+          <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <input placeholder="Label, e.g. Wild Card" value={newWeekLabel} onChange={(e) => setNewWeekLabel(e.target.value)} style={{ padding: 8 }} />
             <input placeholder="Week #" type="number" value={newWeekNumber} onChange={(e) => setNewWeekNumber(e.target.value)} style={{ padding: 8, width: 80 }} />
+            <select value={newWeekType} onChange={(e) => setNewWeekType(e.target.value)} style={{ padding: 8 }}>
+              <option value="regular">Regular season</option>
+              <option value="playoff_r1">Wild Card</option>
+              <option value="playoff_r2">Divisional</option>
+            </select>
+            <input type="date" value={newWeekStart} onChange={(e) => setNewWeekStart(e.target.value)} style={{ padding: 8 }} title="Start date (for sorting games into this week)" />
+            <input type="date" value={newWeekEnd} onChange={(e) => setNewWeekEnd(e.target.value)} style={{ padding: 8 }} title="End date" />
             <button className="cc-savebtn" onClick={createWeek}>Create week</button>
           </div>
         </details>
