@@ -7,7 +7,11 @@ export default function CreateLeaguePage() {
   const supabase = supabaseBrowser();
   const router = useRouter();
   const [name, setName] = useState("");
-  const [seasonYear, setSeasonYear] = useState(new Date().getFullYear());
+  const now = new Date();
+  const defaultSeasonLabel = now.getMonth() >= 5 // June or later -> season starting this year
+    ? `${now.getFullYear()}-${now.getFullYear() + 1}`
+    : `${now.getFullYear() - 1}-${now.getFullYear()}`;
+  const [seasonYear, setSeasonYear] = useState(defaultSeasonLabel);
   const [picksPerWeek, setPicksPerWeek] = useState(5);
   const [error, setError] = useState(null);
   const [creating, setCreating] = useState(false);
@@ -20,7 +24,7 @@ export default function CreateLeaguePage() {
 
     const { data: league, error: leagueErr } = await supabase
       .from("leagues")
-      .insert({ name, season_year: Number(seasonYear), picks_per_week: Number(picksPerWeek) })
+      .insert({ name, season_year: seasonYear, picks_per_week: Number(picksPerWeek) })
       .select()
       .single();
     if (leagueErr) { setError(leagueErr.message); setCreating(false); return; }
@@ -43,8 +47,8 @@ export default function CreateLeaguePage() {
           <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="The Cover Club" />
         </div>
         <div className="cc-field">
-          <label>Season year</label>
-          <input required type="number" value={seasonYear} onChange={(e) => setSeasonYear(e.target.value)} />
+          <label>Season</label>
+          <input required type="text" value={seasonYear} onChange={(e) => setSeasonYear(e.target.value)} placeholder="2026-2027" />
         </div>
         <div className="cc-field">
           <label>Picks per person per week</label>
