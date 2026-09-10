@@ -5,6 +5,24 @@ import { supabaseBrowser } from "@/lib/supabaseClient";
 import { pickCurrentWeek } from "@/lib/currentWeek";
 import Nav from "@/components/Nav";
 
+function LineInput({ value, onCommit }) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => { setDraft(String(value)); }, [value]);
+  return (
+    <input
+      type="number"
+      step="0.5"
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => {
+        const parsed = parseFloat(draft);
+        if (!isNaN(parsed)) onCommit(parsed);
+        else setDraft(String(value)); // invalid/empty -- revert instead of saving garbage
+      }}
+    />
+  );
+}
+
 export default function CommissionerPage() {
   const supabase = supabaseBrowser();
   const [loading, setLoading] = useState(true);
@@ -148,26 +166,34 @@ export default function CommissionerPage() {
       return;
     }
     setWarning(null);
+    // Update the screen right away so it feels instant; the save happens
+    // in the background. If it fails, we resync from the server.
+    setPicks((prev) => {
+      const others = prev.filter((p) => !(p.user_id === userId && p.game_id === game.id));
+      return [...others, { ...(existing || {}), id: existing?.id, game_id: game.id, user_id: userId, team, line }];
+    });
     const res = await fetch("/api/commissioner/set-pick", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ gameId: game.id, userId, team, line }),
     });
-    const body = await res.json();
-    if (!res.ok) { alert(body.error || "Something went wrong"); return; }
-    loadWeekData(selectedWeek);
+    if (!res.ok) {
+      const body = await res.json();
+      alert(body.error || "Something went wrong");
+      loadWeekData(selectedWeek); // resync since our optimistic update was wrong
+    }
   };
 
   const clearPick = async (game, userId) => {
     const existing = pickFor(userId, game.id);
     if (!existing) return;
+    setPicks((prev) => prev.filter((p) => !(p.user_id === userId && p.game_id === game.id)));
+    setWarning(null);
     await fetch("/api/commissioner/clear-pick", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ gameId: game.id, userId }),
     });
-    setWarning(null);
-    loadWeekData(selectedWeek);
   };
 
   if (loading) return <div className="cc-body">Loading&hellip;</div>;
@@ -294,7 +320,7 @@ export default function CommissionerPage() {
                               {p && (
                                 <div className="cc-lineinput">
                                   <span className="sign">{p.line > 0 ? "+" : ""}</span>
-                                  <input type="number" step="0.5" value={p.line} onChange={(e) => setPick(g, m.user_id, p.team, parseFloat(e.target.value))} />
+                                  <LineInput value={p.line} onCommit={(line) => setPick(g, m.user_id, p.team, line)} />
                                 </div>
                               )}
                             </div>
