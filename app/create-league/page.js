@@ -1,11 +1,9 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabaseBrowser } from "@/lib/supabaseClient";
 import Nav from "@/components/Nav";
 
 export default function CreateLeaguePage() {
-  const supabase = supabaseBrowser();
   const router = useRouter();
   const [name, setName] = useState("");
   const now = new Date();
@@ -21,19 +19,14 @@ export default function CreateLeaguePage() {
     e.preventDefault();
     setCreating(true);
     setError(null);
-    const { data: { user } } = await supabase.auth.getUser();
 
-    const { data: league, error: leagueErr } = await supabase
-      .from("leagues")
-      .insert({ name, season_year: seasonYear, picks_per_week: Number(picksPerWeek) })
-      .select()
-      .single();
-    if (leagueErr) { setError(leagueErr.message); setCreating(false); return; }
-
-    const { error: memberErr } = await supabase
-      .from("league_members")
-      .insert({ league_id: league.id, user_id: user.id, role: "commissioner" });
-    if (memberErr) { setError(memberErr.message); setCreating(false); return; }
+    const res = await fetch("/api/create-league", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, season_year: seasonYear, picks_per_week: Number(picksPerWeek) }),
+    });
+    const body = await res.json();
+    if (!res.ok) { setError(body.error || "Something went wrong"); setCreating(false); return; }
 
     router.push("/picks");
   };
