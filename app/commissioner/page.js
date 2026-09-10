@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseClient";
+import { pickCurrentWeek } from "@/lib/currentWeek";
 import Nav from "@/components/Nav";
 
 export default function CommissionerPage() {
@@ -56,7 +57,7 @@ export default function CommissionerPage() {
 
     const { data: leagueWeeks } = await supabase.from("weeks").select("*").eq("league_id", membership.league_id).order("week_number");
     setWeeks(leagueWeeks || []);
-    setSelectedWeek((prev) => prev || leagueWeeks?.[leagueWeeks.length - 1]?.id || null);
+    setSelectedWeek((prev) => prev || pickCurrentWeek(leagueWeeks || [])?.id || null);
 
     const { data: leagueMembers } = await supabase.from("league_members").select("user_id, role, profiles(display_name, email)").eq("league_id", membership.league_id);
     setMembers((leagueMembers || []).map((m) => ({ user_id: m.user_id, display_name: m.profiles?.display_name, email: m.profiles?.email, role: m.role })));
@@ -238,6 +239,12 @@ export default function CommissionerPage() {
           <>
             <details style={{ marginBottom: 18 }}>
               <summary className="cc-namelink" style={{ cursor: "pointer" }}>+ Add a game to this week</summary>
+              <p className="cc-hiddennote" style={{ marginTop: 8 }}>
+                "Home line" is the spread from the home team's perspective (negative if they're favored, e.g. -3.5;
+                positive if they're the underdog, e.g. +3.5). Set status to "Final" only for a game that's
+                already been played -- that's what unlocks entering the score and lets picks get graded.
+                Leave it "Scheduled" for a normal upcoming game.
+              </p>
               <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
                 <input placeholder="Home (e.g. PHI)" value={newGame.home_team} onChange={(e) => setNewGame({ ...newGame, home_team: e.target.value })} style={{ padding: 8, width: 90 }} />
                 <input placeholder="Away (e.g. DAL)" value={newGame.away_team} onChange={(e) => setNewGame({ ...newGame, away_team: e.target.value })} style={{ padding: 8, width: 90 }} />
