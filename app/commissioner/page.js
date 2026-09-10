@@ -26,6 +26,21 @@ export default function CommissionerPage() {
   const [newWeekLabel, setNewWeekLabel] = useState("");
   const [newWeekNumber, setNewWeekNumber] = useState("");
   const [newGame, setNewGame] = useState({ home_team: "", away_team: "", kickoff_at: "", home_score: "", away_score: "", ref_spread_home: "", status: "final" });
+  const [seasonStartDate, setSeasonStartDate] = useState("");
+  const [seasonSetupMsg, setSeasonSetupMsg] = useState(null);
+
+  const setupSeason = async () => {
+    if (!seasonStartDate) { alert("Pick a date first"); return; }
+    const res = await fetch("/api/setup-season", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ week1StartDate: seasonStartDate }),
+    });
+    const body = await res.json();
+    if (!res.ok) { alert(body.error || "Something went wrong"); return; }
+    setSeasonSetupMsg(`Created ${body.count} weeks. New games from the odds sync will now sort themselves automatically.`);
+    load();
+  };
 
   const load = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -195,7 +210,23 @@ export default function CommissionerPage() {
         </details>
 
         <details style={{ marginBottom: 18 }}>
-          <summary className="cc-namelink" style={{ cursor: "pointer" }}>+ Create a new week</summary>
+          <summary className="cc-namelink" style={{ cursor: "pointer" }}>+ Set up the whole season at once</summary>
+          <div style={{ marginTop: 10 }}>
+            <p className="cc-hiddennote" style={{ marginTop: 0 }}>
+              Generates all 18 regular-season weeks with real date ranges, so incoming games automatically sort
+              into the correct week from now on. Pick the date of the Tuesday (or any day) right before Week 1's
+              first game -- each week then runs 7 days from there.
+            </p>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input type="date" value={seasonStartDate} onChange={(e) => setSeasonStartDate(e.target.value)} style={{ padding: 8 }} />
+              <button className="cc-savebtn" onClick={setupSeason}>Generate 18 weeks</button>
+            </div>
+            {seasonSetupMsg && <div className="cc-savedbanner" style={{ marginTop: 10 }}>{seasonSetupMsg}</div>}
+          </div>
+        </details>
+
+        <details style={{ marginBottom: 18 }}>
+          <summary className="cc-namelink" style={{ cursor: "pointer" }}>+ Create a single new week</summary>
           <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
             <input placeholder="Label, e.g. Week 3" value={newWeekLabel} onChange={(e) => setNewWeekLabel(e.target.value)} style={{ padding: 8 }} />
             <input placeholder="Week #" type="number" value={newWeekNumber} onChange={(e) => setNewWeekNumber(e.target.value)} style={{ padding: 8, width: 80 }} />
