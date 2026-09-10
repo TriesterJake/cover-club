@@ -148,23 +148,24 @@ export default function CommissionerPage() {
       return;
     }
     setWarning(null);
-    const { error } = await supabase.from("picks").upsert({
-      id: existing?.id,
-      game_id: game.id,
-      user_id: userId,
-      team,
-      line,
-      source: existing ? "commissioner_correction" : "commissioner_backfill",
-      entered_by: myId,
-    }, { onConflict: "game_id,user_id" });
-    if (error) { alert(error.message); return; }
+    const res = await fetch("/api/commissioner/set-pick", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gameId: game.id, userId, team, line }),
+    });
+    const body = await res.json();
+    if (!res.ok) { alert(body.error || "Something went wrong"); return; }
     loadWeekData(selectedWeek);
   };
 
   const clearPick = async (game, userId) => {
     const existing = pickFor(userId, game.id);
     if (!existing) return;
-    await supabase.from("picks").delete().eq("id", existing.id);
+    await fetch("/api/commissioner/clear-pick", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gameId: game.id, userId }),
+    });
     setWarning(null);
     loadWeekData(selectedWeek);
   };
