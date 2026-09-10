@@ -116,6 +116,12 @@ export default function CommissionerPage() {
     loadWeekData(selectedWeek);
   };
 
+  const removeGame = async (game) => {
+    if (!window.confirm(`Remove ${game.home_team} vs ${game.away_team}? This also deletes any picks on it.`)) return;
+    await supabase.from("games").delete().eq("id", game.id);
+    loadWeekData(selectedWeek);
+  };
+
   const pickFor = (userId, gameId) => picks.find((p) => p.user_id === userId && p.game_id === gameId);
   const pickCount = (userId) => picks.filter((p) => p.user_id === userId).length;
 
@@ -226,7 +232,11 @@ export default function CommissionerPage() {
                 <tbody>
                   {games.map((g) => (
                     <tr key={g.id}>
-                      <td className="name-cell">{g.home_team}/{g.away_team}<br /><span style={{ color: "var(--text-dim)", fontFamily: "Inter, sans-serif", fontSize: 11 }}>{g.status === "final" ? `${g.home_team} ${g.home_score} – ${g.away_team} ${g.away_score}` : "not played yet"}</span></td>
+                      <td className="name-cell">
+                        {g.home_team}/{g.away_team}<br />
+                        <span style={{ color: "var(--text-dim)", fontFamily: "Inter, sans-serif", fontSize: 11 }}>{g.status === "final" ? `${g.home_team} ${g.home_score} – ${g.away_team} ${g.away_score}` : "not played yet"}</span><br />
+                        <button className="cc-namelink" style={{ fontSize: 11, color: "#E58C7C" }} onClick={() => removeGame(g)}>Remove</button>
+                      </td>
                       {members.map((m) => {
                         const p = pickFor(m.user_id, g.id);
                         return (

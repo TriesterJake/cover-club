@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { supabaseServer, supabaseAdmin } from "@/lib/supabaseServer";
 
-export async function GET() {
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const requestedWeekId = searchParams.get("weekId");
+
   const supabase = supabaseServer();
   const { data: { user }, error: userErr } = await supabase.auth.getUser();
   if (userErr || !user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
@@ -16,13 +19,20 @@ export async function GET() {
     .maybeSingle();
   if (!membership) return NextResponse.json({ userId: user.id, membership: null });
 
-  const { data: week } = await admin
-    .from("weeks")
-    .select("*")
-    .eq("league_id", membership.league_id)
-    .order("week_number", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  let week = null;
+  if (requestedWeekId) {
+    const { data } = await admin.from("weeks").select("*").eq("id", requestedWeekId).single();
+    week = data;
+  } else {
+    const { data } = await admin
+      .from("weeks")
+      .select("*")
+      .eq("league_id", membership.league_id)
+      .order("week_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    week = data;
+  }
   if (!week) return NextResponse.json({ userId: user.id, membership, week: null });
 
   const { data: games } = await admin

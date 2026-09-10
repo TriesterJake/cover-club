@@ -1,47 +1,39 @@
 "use client";
 import { useEffect, useState } from "react";
-import { supabaseBrowser } from "@/lib/supabaseClient";
 import { fmtLine, gradePick } from "@/lib/grading";
 import Nav from "@/components/Nav";
 
 export default function GamesPage() {
-  const supabase = supabaseBrowser();
   const [loading, setLoading] = useState(true);
   const [isCommissioner, setIsCommissioner] = useState(false);
+  const [myId, setMyId] = useState(null);
   const [weeks, setWeeks] = useState([]);
   const [scope, setScope] = useState(null);
   const [games, setGames] = useState([]);
   const [picks, setPicks] = useState([]);
   const [members, setMembers] = useState([]);
-  const [myId, setMyId] = useState(null);
 
   useEffect(() => {
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setMyId(user.id);
-      const { data: membership } = await supabase.from("league_members").select("league_id, role").eq("user_id", user.id).limit(1).single();
-      if (!membership) { setLoading(false); return; }
-      setIsCommissioner(membership.role === "commissioner");
-
-      const { data: leagueWeeks } = await supabase.from("weeks").select("*").eq("league_id", membership.league_id).order("week_number");
-      setWeeks(leagueWeeks || []);
-      setScope(leagueWeeks?.[leagueWeeks.length - 1]?.id);
-
-      const { data: leagueMembers } = await supabase.from("league_members").select("user_id, profiles(display_name)").eq("league_id", membership.league_id);
-      setMembers((leagueMembers || []).map((m) => ({ user_id: m.user_id, display_name: m.profiles?.display_name })));
-      setLoading(false);
+      const res = await fetch("/api/league-weeks");
+      const data = await res.json();
+      setWeeks(data.weeks || []);
+      setScope(data.weeks?.[data.weeks.length - 1]?.id || null);
     })();
   }, []);
 
   useEffect(() => {
-    if (!scope) return;
+    if (!scope) { setLoading(false); return; }
     (async () => {
-      const { data: weekGames } = await supabase.from("games").select("*").eq("week_id", scope).order("kickoff_at");
-      setGames(weekGames || []);
-      const gameIds = (weekGames || []).map((g) => g.id);
-      const { data: visiblePicks } = gameIds.length ? await supabase.from("picks").select("*").in("game_id", gameIds) : { data: [] };
-      setPicks(visiblePicks || []);
+      setLoading(true);
+      const res = await fetch(`/api/week-data?weekId=${scope}`);
+      const data = await res.json();
+      setMyId(data.userId);
+      setIsCommissioner(data.membership?.role === "commissioner");
+      setGames(data.games || []);
+      setPicks(data.picks || []);
+      setMembers(data.members || []);
+      setLoading(false);
     })();
   }, [scope]);
 
@@ -57,6 +49,7 @@ export default function GamesPage() {
         <div className="cc-scopetoggle" style={{ marginTop: 10 }}>
           {weeks.map((w) => <button key={w.id} className={"cc-scopebtn" + (scope === w.id ? " active" : "")} onClick={() => setScope(w.id)}>{w.label}</button>)}
         </div>
+        {games.length === 0 && <div className="cc-hiddennote">No games in this week yet.</div>}
         {games.map((g) => {
           const entries = picks.filter((p) => p.game_id === g.id);
           const kickoffPassed = new Date(g.kickoff_at) <= new Date();
@@ -78,11 +71,9 @@ export default function GamesPage() {
                 entries.map((p) => (
                   <div className="cc-leaguepickrow" key={p.id}>
                     <span>{nameFor(p.user_id)}</span>
-                    {stillHidden && p.user_id !== myId ? null : (
-                      <span className={g.status === "final" ? "cc-cell " + gradePick(g, p) : ""}>
-                        <span className="cc-num">{p.team} {fmtLine(p.line)}{stillHidden ? " 🔒" : ""}</span>
-                      </span>
-                    )}
+                    <span className={g.status === "final" ? "cc-cell " + gradePick(g, p) : ""}>
+                      <span className="cc-num">{p.team} {fmtLine(p.line)}{stillHidden ? " 🔒" : ""}</span>
+                    </span>
                   </div>
                 ))
               )}
