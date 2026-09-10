@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { fmtLine, gradePick } from "@/lib/grading";
+import { pickCurrentWeek } from "@/lib/currentWeek";
 import Nav from "@/components/Nav";
 
 export default function GamesPage() {
@@ -18,7 +19,7 @@ export default function GamesPage() {
       const res = await fetch("/api/league-weeks");
       const data = await res.json();
       setWeeks(data.weeks || []);
-      setScope(data.weeks?.[data.weeks.length - 1]?.id || null);
+      setScope(pickCurrentWeek(data.weeks || [])?.id || null);
     })();
   }, []);
 

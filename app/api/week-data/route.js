@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseServer, supabaseAdmin } from "@/lib/supabaseServer";
+import { pickCurrentWeek } from "@/lib/currentWeek";
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -24,14 +25,11 @@ export async function GET(request) {
     const { data } = await admin.from("weeks").select("*").eq("id", requestedWeekId).single();
     week = data;
   } else {
-    const { data } = await admin
+    const { data: allWeeks } = await admin
       .from("weeks")
       .select("*")
-      .eq("league_id", membership.league_id)
-      .order("week_number", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    week = data;
+      .eq("league_id", membership.league_id);
+    week = pickCurrentWeek(allWeeks || []);
   }
   if (!week) return NextResponse.json({ userId: user.id, membership, week: null });
 
