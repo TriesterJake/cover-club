@@ -50,6 +50,19 @@ export default function CommissionerPage() {
   const [newGame, setNewGame] = useState({ home_team: "", away_team: "", kickoff_at: "", home_score: "", away_score: "", ref_spread_home: "", status: "final" });
   const [seasonStartDate, setSeasonStartDate] = useState("");
   const [seasonSetupMsg, setSeasonSetupMsg] = useState(null);
+  const [resyncMsg, setResyncMsg] = useState(null);
+  const [resyncing, setResyncing] = useState(false);
+
+  const resyncAll = async () => {
+    setResyncing(true);
+    setResyncMsg(null);
+    const res = await fetch("/api/commissioner/resync-all", { method: "POST" });
+    const body = await res.json();
+    setResyncing(false);
+    if (!res.ok) { setResyncMsg(body.error || "Something went wrong"); return; }
+    setResyncMsg(`Done -- checked ${body.scheduleCount} scheduled games and ${body.oddsCount} odds updates across every week.`);
+    loadWeekData(selectedWeek);
+  };
 
   const setupSeason = async () => {
     if (!seasonStartDate) { alert("Pick a date first"); return; }
@@ -240,6 +253,17 @@ export default function CommissionerPage() {
             <p className="cc-hiddennote">They need to have visited the site and signed in at least once before you can add them by email.</p>
           </div>
         </details>
+
+        <div style={{ marginBottom: 18 }}>
+          <button className="cc-savebtn" disabled={resyncing} onClick={resyncAll}>
+            {resyncing ? "Resyncing…" : "Resync every week now"}
+          </button>
+          <p className="cc-hiddennote">
+            The routine sync only checks the current week to stay fast. Use this if an older or future week's
+            games/scores look stale, or right after generating a new season.
+          </p>
+          {resyncMsg && <div className="cc-savedbanner">{resyncMsg}</div>}
+        </div>
 
         <details style={{ marginBottom: 18 }}>
           <summary className="cc-namelink" style={{ cursor: "pointer" }}>+ Set up the whole season at once</summary>

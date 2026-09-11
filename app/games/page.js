@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { fmtLine, gradePick, liveLean } from "@/lib/grading";
+import { teamName } from "@/lib/teamNames";
 import { pickCurrentWeek } from "@/lib/currentWeek";
 import Nav from "@/components/Nav";
 
@@ -58,12 +59,12 @@ export default function GamesPage() {
           return (
             <div className="cc-game" key={g.id}>
               <div className="cc-gamehead">
-                <span className="cc-when">{g.home_team} / {g.away_team}{stillHidden ? " · " + new Date(g.kickoff_at).toLocaleString() : ""}</span>
+                <span className="cc-when">{teamName(g.home_team)} / {teamName(g.away_team)}{stillHidden ? " · " + new Date(g.kickoff_at).toLocaleString() : ""}</span>
                 <span className={"cc-status " + g.status}>{g.status.toUpperCase()}</span>
               </div>
               {!stillHidden && g.home_score != null && (
                 <div className="cc-when cc-num" style={{ marginBottom: 8, display: "block" }}>
-                  {g.home_team} {g.home_score} &ndash; {g.away_team} {g.away_score}{g.status === "live" ? " · " + g.live_clock : ""}
+                  {teamName(g.home_team)} {g.home_score} &ndash; {teamName(g.away_team)} {g.away_score}{g.status === "live" ? " · " + g.live_clock : ""}
                 </div>
               )}
               {entries.length === 0 ? (
@@ -73,7 +74,7 @@ export default function GamesPage() {
                   <div className="cc-leaguepickrow" key={p.id}>
                     <span>{nameFor(p.user_id)}</span>
                     <span className={g.status === "final" ? "cc-cell " + gradePick(g, p) : g.status === "live" ? "cc-cell " + liveLean(g, p) : ""}>
-                      <span className="cc-num">{p.team} {fmtLine(p.line)}{stillHidden ? " 🔒" : ""}</span>
+                      <span className="cc-num">{teamName(p.team)} {fmtLine(p.line)}{stillHidden ? " 🔒" : ""}</span>
                     </span>
                   </div>
                 ))

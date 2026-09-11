@@ -14,10 +14,15 @@ body {
   margin: 0; min-height: 100vh;
 }
 .cc-num { font-family: 'Oswald', sans-serif; font-variant-numeric: tabular-nums; }
-.cc-masthead { padding: 28px 24px 0; border-bottom: 1px solid var(--line); }
-.cc-title { font-family: 'Oswald', sans-serif; font-size: 28px; font-weight: 700; margin: 0 0 4px; }
-.cc-sub { color: var(--text-dim); font-size: 14px; margin: 0 0 20px; }
-.cc-tabs { display: flex; gap: 24px; flex-wrap: wrap; }
+.cc-masthead { padding: 20px 20px 0; border-bottom: 1px solid var(--line); background: var(--panel); }
+.cc-masthead-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.cc-signout { background: none; border: 1px solid var(--line); border-radius: 20px; color: var(--text-dim); font-size: 12px; padding: 6px 12px; cursor: pointer; white-space: nowrap; flex-shrink: 0; margin-top: 2px; }
+.cc-signout:hover { color: var(--text); border-color: var(--text-dim); }
+.cc-tabs-scroll { overflow-x: auto; margin: 12px -20px 0; padding: 0 20px; -webkit-overflow-scrolling: touch; }
+.cc-tabs-scroll::-webkit-scrollbar { display: none; }
+.cc-title { font-family: 'Oswald', sans-serif; font-size: 24px; font-weight: 700; margin: 0 0 2px; }
+.cc-sub { color: var(--text-dim); font-size: 13px; margin: 0; }
+.cc-tabs { display: flex; gap: 22px; flex-wrap: nowrap; white-space: nowrap; width: max-content; }
 .cc-tab { background: none; border: none; cursor: pointer; color: var(--text-dim); font-family: 'Oswald', sans-serif; font-size: 14px; padding: 10px 2px 12px; border-bottom: 2px solid transparent; text-decoration: none; display: inline-block; }
 .cc-tab.active { color: var(--text); border-bottom-color: var(--accent); }
 .cc-body { max-width: 760px; margin: 0 auto; padding: 24px 20px; }

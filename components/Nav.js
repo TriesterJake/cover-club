@@ -24,15 +24,21 @@ export default function Nav({ isCommissioner }) {
 
   return (
     <div className="cc-masthead">
-      <h1 className="cc-title">The Cover Club</h1>
-      <p className="cc-sub">Family pick&rsquo;em &middot; 2026 season</p>
-      <div className="cc-tabs">
-        {TABS.filter((t) => !t.commissionerOnly || isCommissioner).map((t) => (
-          <Link key={t.href} href={t.href} className={"cc-tab" + (pathname === t.href ? " active" : "")}>
-            {t.label}
-          </Link>
-        ))}
-        <button className="cc-tab" onClick={signOut} style={{ marginLeft: "auto" }}>Sign out</button>
+      <div className="cc-masthead-top">
+        <div>
+          <h1 className="cc-title">The Cover Club</h1>
+          <p className="cc-sub">Family pick&rsquo;em &middot; 2026 season</p>
+        </div>
+        <button className="cc-signout" onClick={signOut}>Sign out</button>
+      </div>
+      <div className="cc-tabs-scroll">
+        <div className="cc-tabs">
+          {TABS.filter((t) => !t.commissionerOnly || isCommissioner).map((t) => (
+            <Link key={t.href} href={t.href} className={"cc-tab" + (pathname === t.href ? " active" : "")}>
+              {t.label}
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   );
