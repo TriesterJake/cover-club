@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { fmtLine, gradePick, liveLean } from "@/lib/grading";
-import { teamName } from "@/lib/teamNames";
+import { teamName, teamLogo } from "@/lib/teamNames";
+import { formatKickoff } from "@/lib/formatKickoff";
 import { pickCurrentWeek } from "@/lib/currentWeek";
 import Nav from "@/components/Nav";
 
@@ -59,7 +60,9 @@ export default function GamesPage() {
           return (
             <div className="cc-game" key={g.id}>
               <div className="cc-gamehead">
-                <span className="cc-when">{teamName(g.home_team)} / {teamName(g.away_team)}{stillHidden ? " · " + new Date(g.kickoff_at).toLocaleString() : ""}</span>
+                <span className="cc-when">
+                  <img src={teamLogo(g.home_team)} alt="" className="cc-logo-sm" />{teamName(g.home_team)} / <img src={teamLogo(g.away_team)} alt="" className="cc-logo-sm" />{teamName(g.away_team)} &middot; {formatKickoff(g.kickoff_at)}
+                </span>
                 <span className={"cc-status " + g.status}>{g.status.toUpperCase()}</span>
               </div>
               {!stillHidden && g.home_score != null && (
@@ -68,13 +71,17 @@ export default function GamesPage() {
                 </div>
               )}
               {entries.length === 0 ? (
-                <div className="cc-hiddennote">No visible picks on this game yet.</div>
+                <div className="cc-hiddennote">
+                  {g.status === "scheduled" ? "No visible picks on this game yet." : "Nobody picked this game."}
+                </div>
               ) : (
                 entries.map((p) => (
                   <div className="cc-leaguepickrow" key={p.id}>
                     <span>{nameFor(p.user_id)}</span>
                     <span className={g.status === "final" ? "cc-cell " + gradePick(g, p) : g.status === "live" ? "cc-cell " + liveLean(g, p) : ""}>
-                      <span className="cc-num">{teamName(p.team)} {fmtLine(p.line)}{stillHidden ? " 🔒" : ""}</span>
+                      <span className="cc-num">
+                        <img src={teamLogo(p.team)} alt="" className="cc-logo-sm" />{teamName(p.team)} {fmtLine(p.line)}{stillHidden ? " 🔒" : ""}
+                      </span>
                     </span>
                   </div>
                 ))

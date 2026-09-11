@@ -102,3 +102,5 @@ table.cc-grid tr.you td.name-cell { color: var(--accent); }
 .cc-bfcell { display: flex; flex-direction: column; gap: 3px; }
 .cc-lineinput { display: flex; align-items: center; }
 .cc-lineinput .sign { font-size: 12px; color: var(--text-dim); width: 8px; }
+.cc-logo { height: 22px; width: 22px; object-fit: contain; vertical-align: middle; margin-right: 7px; }
+.cc-logo-sm { height: 16px; width: 16px; object-fit: contain; vertical-align: middle; margin-right: 5px; }

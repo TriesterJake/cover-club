@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { fmtLine, gradePick, liveLean } from "@/lib/grading";
-import { teamName } from "@/lib/teamNames";
+import { teamName, teamLogo } from "@/lib/teamNames";
+import { formatKickoff } from "@/lib/formatKickoff";
 import Nav from "@/components/Nav";
 
 export default function PicksPage() {
@@ -82,25 +83,25 @@ export default function PicksPage() {
             return (
               <div className="cc-game" key={game.id}>
                 <div className="cc-gamehead">
-                  <span className="cc-when">{new Date(game.kickoff_at).toLocaleString()}</span>
+                  <span className="cc-when">{formatKickoff(game.kickoff_at)}</span>
                   <span className={"cc-status " + game.status}>{game.status.toUpperCase()}</span>
                 </div>
                 {game.status === "final" && (
                   <div className="cc-finalscore">
-                    <span className="cc-num">{teamName(game.home_team)} {game.home_score} &ndash; {teamName(game.away_team)} {game.away_score}</span>
+                    <span className="cc-num"><img src={teamLogo(game.home_team)} alt="" className="cc-logo-sm" />{teamName(game.home_team)} {game.home_score} &ndash; <img src={teamLogo(game.away_team)} alt="" className="cc-logo-sm" />{teamName(game.away_team)} {game.away_score}</span>
                     {pick && <span className={"cc-gradepill " + grade}>{grade === "win" ? "Covered · +1.0" : grade === "push" ? "Push · +0.5" : "No cover · +0"}</span>}
                   </div>
                 )}
                 {game.status === "live" && (
                   <div className="cc-livewrap">
-                    <span className="cc-num">{teamName(game.home_team)} {game.home_score} &ndash; {teamName(game.away_team)} {game.away_score}</span>
+                    <span className="cc-num"><img src={teamLogo(game.home_team)} alt="" className="cc-logo-sm" />{teamName(game.home_team)} {game.home_score} &ndash; <img src={teamLogo(game.away_team)} alt="" className="cc-logo-sm" />{teamName(game.away_team)} {game.away_score}</span>
                     <span className="cc-when">{game.live_clock}</span>
                   </div>
                 )}
                 {pick && (
                   <div className={"cc-pickbox" + (grade ? " " + grade : live ? " " + live : "")}>
                     <div className="cc-pickbox-label">Your pick</div>
-                    <div className="cc-pickbox-team">{teamName(pick.team)} <span className="cc-num">{fmtLine(pick.line)}</span></div>
+                    <div className="cc-pickbox-team"><img src={teamLogo(pick.team)} alt="" className="cc-logo" />{teamName(pick.team)} <span className="cc-num">{fmtLine(pick.line)}</span></div>
                     {game.status === "live" && (
                       <div className="cc-pickbox-sub">
                         <span className={"cc-coverdot " + live}></span>
@@ -125,14 +126,14 @@ export default function PicksPage() {
           return (
             <div className="cc-game" key={game.id}>
               <div className="cc-gamehead">
-                <span className="cc-when">{new Date(game.kickoff_at).toLocaleString()}</span>
+                <span className="cc-when">{formatKickoff(game.kickoff_at)}</span>
                 <span className="cc-status scheduled">LOCKS AT KICKOFF</span>
               </div>
               {pick ? (
                 <>
                   <div className="cc-pickbox">
                     <div className="cc-pickbox-label">Your pick</div>
-                    <div className="cc-pickbox-team">{teamName(pick.team)} <span className="cc-num">{fmtLine(pick.line)}</span></div>
+                    <div className="cc-pickbox-team"><img src={teamLogo(pick.team)} alt="" className="cc-logo" />{teamName(pick.team)} <span className="cc-num">{fmtLine(pick.line)}</span></div>
                     <div className="cc-pickbox-sub">🔒 locked {new Date(pick.locked_at).toLocaleString()}</div>
                   </div>
                   <div className="cc-hiddennote">Only you can see this until kickoff.</div>
@@ -142,11 +143,11 @@ export default function PicksPage() {
               ) : (
                 <div className="cc-matchup">
                   <button className="cc-sidebtn" onClick={() => submitPick(game, game.home_team)}>
-                    <div className="cc-team">{teamName(game.home_team)}</div>
+                    <div className="cc-team"><img src={teamLogo(game.home_team)} alt="" className="cc-logo" />{teamName(game.home_team)}</div>
                     <div className="cc-line cc-num">{game.ref_spread_home != null ? fmtLine(game.ref_spread_home) : "—"}</div>
                   </button>
                   <button className="cc-sidebtn" onClick={() => submitPick(game, game.away_team)}>
-                    <div className="cc-team">{teamName(game.away_team)}</div>
+                    <div className="cc-team"><img src={teamLogo(game.away_team)} alt="" className="cc-logo" />{teamName(game.away_team)}</div>
                     <div className="cc-line cc-num">{game.ref_spread_home != null ? fmtLine(-game.ref_spread_home) : "—"}</div>
                   </button>
                 </div>
