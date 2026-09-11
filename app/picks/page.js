@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { fmtLine, gradePick } from "@/lib/grading";
+import { fmtLine, gradePick, liveLean } from "@/lib/grading";
 import Nav from "@/components/Nav";
 
 export default function PicksPage() {
@@ -74,6 +74,7 @@ export default function PicksPage() {
           const pick = myPick(game.id);
           const others = othersPicks(game.id);
           const grade = pick ? gradePick(game, pick) : null;
+          const live = pick ? liveLean(game, pick) : null;
           const kickoffPassed = new Date(game.kickoff_at) <= new Date();
 
           if (game.status !== "scheduled" || kickoffPassed) {
@@ -96,9 +97,15 @@ export default function PicksPage() {
                   </div>
                 )}
                 {pick && (
-                  <div className={"cc-pickbox" + (grade ? " " + grade : "")}>
+                  <div className={"cc-pickbox" + (grade ? " " + grade : live ? " " + live : "")}>
                     <div className="cc-pickbox-label">Your pick</div>
                     <div className="cc-pickbox-team">{pick.team} <span className="cc-num">{fmtLine(pick.line)}</span></div>
+                    {game.status === "live" && (
+                      <div className="cc-pickbox-sub">
+                        <span className={"cc-coverdot " + live}></span>
+                        currently {live === "win" ? "covering" : live === "push" ? "right on the number" : "not covering"}
+                      </div>
+                    )}
                   </div>
                 )}
                 {!pick && <div className="cc-hiddennote">You didn't submit a pick for this game.</div>}

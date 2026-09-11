@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { fmtLine, gradePick } from "@/lib/grading";
+import { fmtLine, gradePick, liveLean } from "@/lib/grading";
 import { pickCurrentWeek } from "@/lib/currentWeek";
 import Nav from "@/components/Nav";
 
@@ -72,7 +72,7 @@ export default function GamesPage() {
                 entries.map((p) => (
                   <div className="cc-leaguepickrow" key={p.id}>
                     <span>{nameFor(p.user_id)}</span>
-                    <span className={g.status === "final" ? "cc-cell " + gradePick(g, p) : ""}>
+                    <span className={g.status === "final" ? "cc-cell " + gradePick(g, p) : g.status === "live" ? "cc-cell " + liveLean(g, p) : ""}>
                       <span className="cc-num">{p.team} {fmtLine(p.line)}{stillHidden ? " 🔒" : ""}</span>
                     </span>
                   </div>
