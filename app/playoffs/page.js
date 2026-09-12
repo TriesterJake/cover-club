@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseClient";
+import { todayEastern } from "@/lib/currentWeek";
 import Nav from "@/components/Nav";
 
 // Simple Monte Carlo: models each person's weekly score as a normal draw
@@ -44,7 +45,7 @@ export default function PlayoffsPage() {
   const [isCommissioner, setIsCommissioner] = useState(false);
   const [standings, setStandings] = useState([]);
   const [weeksPlayed, setWeeksPlayed] = useState(0);
-  const [weeksRemaining, setWeeksRemaining] = useState(4);
+  const [weeksRemaining, setWeeksRemaining] = useState(0);
   const [seeds, setSeeds] = useState([]);
 
   useEffect(() => {
@@ -58,8 +59,11 @@ export default function PlayoffsPage() {
       const { data: leagueMembers } = await supabase.from("league_members").select("user_id, playoff_seed, profiles(display_name)").eq("league_id", membership.league_id).order("playoff_seed");
       setSeeds((leagueMembers || []).filter((m) => m.playoff_seed).sort((a, b) => a.playoff_seed - b.playoff_seed));
 
-      const { data: leagueWeeks } = await supabase.from("weeks").select("id").eq("league_id", membership.league_id).eq("type", "regular");
-      setWeeksPlayed((leagueWeeks || []).length);
+      const { data: leagueWeeks } = await supabase.from("weeks").select("id, start_date, end_date").eq("league_id", membership.league_id).eq("type", "regular");
+      const today = todayEastern();
+      const played = (leagueWeeks || []).filter((w) => w.end_date && w.end_date < today).length;
+      setWeeksPlayed(played);
+      setWeeksRemaining(Math.max(0, (leagueWeeks || []).length - played));
 
       const { data: graded } = await supabase.from("graded_picks").select("user_id, points").eq("game_status", "final");
       const totals = {};
@@ -97,9 +101,7 @@ export default function PlayoffsPage() {
 
         <div className="cc-weeklabel" style={{ display: "block", margin: "24px 0 4px" }}>Chance of making the playoffs</div>
         <p className="cc-hiddennote" style={{ marginTop: 0 }}>
-          Simulated from each person's scoring rate so far, assuming {weeksRemaining} week{weeksRemaining === 1 ? "" : "s"} left &mdash;
-          <button className="cc-namelink" style={{ marginLeft: 4 }} onClick={() => setWeeksRemaining((n) => Math.max(0, n - 1))}>&minus;</button>
-          <button className="cc-namelink" style={{ marginLeft: 8 }} onClick={() => setWeeksRemaining((n) => n + 1)}>+</button>
+          Simulated from each person's scoring rate so far, with {weeksRemaining} week{weeksRemaining === 1 ? "" : "s"} left in the regular season.
         </p>
         {[...standings].sort((a, b) => (odds[b.user_id] || 0) - (odds[a.user_id] || 0)).map((s) => (
           <div className="cc-oddsrow" key={s.user_id} style={{ marginBottom: 12 }}>

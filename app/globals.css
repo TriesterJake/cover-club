@@ -69,6 +69,8 @@ body {
 .cc-scopetoggle { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
 .cc-scopebtn { background: none; border: 1px solid var(--line); color: var(--text-dim); font-size: 12px; padding: 6px 12px; border-radius: 20px; cursor: pointer; font-family: 'Oswald', sans-serif; }
 .cc-scopebtn.active { background: var(--accent); color: #0E1418; border-color: var(--accent); }
+.cc-seasonbtn { display: block; width: 100%; background: var(--panel); border: 2px solid var(--accent); color: var(--accent); font-family: 'Oswald', sans-serif; font-size: 15px; padding: 12px 18px; border-radius: 8px; cursor: pointer; margin-bottom: 14px; }
+.cc-seasonbtn.active { background: var(--accent); color: #0E1418; }
 table.cc-simpletable { width: 100%; border-collapse: collapse; margin-top: 6px; }
 table.cc-simpletable th { text-align: left; font-family:'Oswald', sans-serif; font-size: 12px; color: var(--text-dim); padding: 8px 6px; border-bottom: 1px solid var(--line); }
 table.cc-simpletable td { padding: 10px 6px; border-bottom: 1px solid var(--line); font-size: 14px; }
@@ -104,5 +106,7 @@ table.cc-grid tr.you td.name-cell { color: var(--accent); }
 .cc-lineinput .sign { font-size: 12px; color: var(--text-dim); width: 8px; }
 .cc-linestep { background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: 3px; width: 20px; height: 20px; line-height: 1; cursor: pointer; font-size: 13px; padding: 0; }
 .cc-linestep:hover { border-color: var(--accent); color: var(--accent); }
+.cc-lineinput-field::-webkit-outer-spin-button, .cc-lineinput-field::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.cc-lineinput-field { -moz-appearance: textfield; }
 .cc-logo { height: 22px; width: 22px; object-fit: contain; vertical-align: middle; margin-right: 7px; }
 .cc-logo-sm { height: 16px; width: 16px; object-fit: contain; vertical-align: middle; margin-right: 5px; }

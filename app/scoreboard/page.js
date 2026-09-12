@@ -58,11 +58,13 @@ export default function ScoreboardPage() {
     <>
       <Nav isCommissioner={isCommissioner} />
       <div className="cc-body">
+        <button className={"cc-seasonbtn" + (scope === "season" ? " active" : "")} onClick={() => setScope("season")}>
+          🏆 Season Standings
+        </button>
         <div className="cc-scopetoggle">
           {weeks.map((w) => (
             <button key={w.id} className={"cc-scopebtn" + (scope === w.id ? " active" : "")} onClick={() => setScope(w.id)}>{w.label}</button>
           ))}
-          <button className={"cc-scopebtn" + (scope === "season" ? " active" : "")} onClick={() => setScope("season")}>Season</button>
         </div>
 
         {scope === "season" ? (

@@ -21,6 +21,7 @@ function LineInput({ value, onCommit }) {
       <button type="button" className="cc-linestep" onClick={() => step(-0.5)}>&minus;</button>
       <input
         type="number"
+        className="cc-lineinput-field"
         step="0.5"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
