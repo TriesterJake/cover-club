@@ -111,17 +111,26 @@ export default function PlayoffsPage() {
         )}
 
         <div className="cc-weeklabel" style={{ display: "block", margin: "24px 0 4px" }}>Chance of making the playoffs</div>
-        <p className="cc-hiddennote" style={{ marginTop: 0 }}>
-          Simulated from each person's scoring rate so far, with {weeksRemaining} week{weeksRemaining === 1 ? "" : "s"} left in the regular season.
-        </p>
-        {[...standings].sort((a, b) => (odds[b.user_id] || 0) - (odds[a.user_id] || 0)).map((s) => (
-          <div className="cc-oddsrow" key={s.user_id} style={{ marginBottom: 12 }}>
-            <div className="cc-leaguepickrow"><span>{s.display_name}</span><span className="cc-num">{odds[s.user_id]}%</span></div>
-            <div style={{ background: "rgba(255,255,255,0.07)", borderRadius: 3, height: 8, overflow: "hidden" }}>
-              <div style={{ background: "var(--accent)", height: "100%", width: `${odds[s.user_id]}%` }}></div>
-            </div>
-          </div>
-        ))}
+        {weeksPlayed === 0 ? (
+          <p className="cc-hiddennote" style={{ marginTop: 0 }}>
+            Playoff odds will show up once the current week is fully wrapped up -- a single week in progress isn't
+            enough real data to project from yet.
+          </p>
+        ) : (
+          <>
+            <p className="cc-hiddennote" style={{ marginTop: 0 }}>
+              Simulated from each person's scoring rate so far, with {weeksRemaining} week{weeksRemaining === 1 ? "" : "s"} left in the regular season.
+            </p>
+            {[...standings].sort((a, b) => (odds[b.user_id] || 0) - (odds[a.user_id] || 0)).map((s) => (
+              <div className="cc-oddsrow" key={s.user_id} style={{ marginBottom: 12 }}>
+                <div className="cc-leaguepickrow"><span>{s.display_name}</span><span className="cc-num">{odds[s.user_id]}%</span></div>
+                <div style={{ background: "rgba(255,255,255,0.07)", borderRadius: 3, height: 8, overflow: "hidden" }}>
+                  <div style={{ background: "var(--accent)", height: "100%", width: `${odds[s.user_id]}%` }}></div>
+                </div>
+              </div>
+            ))}
+          </>
+        )}
       </div>
     </>
   );
