@@ -22,10 +22,19 @@ export async function GET() {
   const { data: leagueWeeks } = await admin
     .from("weeks").select("id, start_date, end_date").eq("league_id", membership.league_id).eq("type", "regular");
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
-  const weeksPlayed = (leagueWeeks || []).filter((w) => w.end_date && w.end_date < today).length;
+  const completedWeeks = (leagueWeeks || []).filter((w) => w.end_date && w.end_date < today);
+  const weeksPlayed = completedWeeks.length;
   const weeksRemaining = Math.max(0, (leagueWeeks || []).length - weeksPlayed);
+  const completedWeekIds = completedWeeks.map((w) => w.id);
 
-  const { data: graded } = await admin.from("graded_picks").select("user_id, points").eq("game_status", "final");
+  // Only pull results from weeks that have FULLY concluded -- the current
+  // in-progress week's already-decided games (e.g. a Thursday night game)
+  // are deliberately excluded here, even though they're real points on
+  // the actual scoreboard. Mixing in a partial week's results is exactly
+  // what caused the odds to swing oddly early in a week.
+  const { data: graded } = completedWeekIds.length
+    ? await admin.from("graded_picks").select("user_id, points").eq("game_status", "final").in("week_id", completedWeekIds)
+    : { data: [] };
   const totals = {};
   const gamesDecided = {};
   (leagueMembers || []).forEach((m) => { totals[m.user_id] = 0; gamesDecided[m.user_id] = 0; });
