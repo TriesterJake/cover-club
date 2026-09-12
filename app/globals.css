@@ -107,6 +107,6 @@ table.cc-grid tr.you td.name-cell { color: var(--accent); }
 .cc-linestep { background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: 3px; width: 20px; height: 20px; line-height: 1; cursor: pointer; font-size: 13px; padding: 0; }
 .cc-linestep:hover { border-color: var(--accent); color: var(--accent); }
 .cc-lineinput-field::-webkit-outer-spin-button, .cc-lineinput-field::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.cc-lineinput-field { -moz-appearance: textfield; }
+.cc-lineinput-field { -moz-appearance: textfield; appearance: textfield; }
 .cc-logo { height: 22px; width: 22px; object-fit: contain; vertical-align: middle; margin-right: 7px; }
 .cc-logo-sm { height: 16px; width: 16px; object-fit: contain; vertical-align: middle; margin-right: 5px; }
