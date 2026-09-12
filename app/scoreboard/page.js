@@ -114,7 +114,7 @@ export default function ScoreboardPage() {
                     const kickoffPassed = new Date(g.kickoff_at) <= new Date();
                     const visible = mine || g.status !== "scheduled" || kickoffPassed;
                     if (!visible) { cells.push(<td key={i}><span className="cc-cell hidden">🔒</span></td>); continue; }
-                    const label = <span className="cc-num"><img src={teamLogo(p.team)} alt="" className="cc-logo-sm" />{teamName(p.team)} {fmtLine(p.line)}</span>;
+                    const label = <span className="cc-num"><img src={teamLogo(p.team)} alt={teamName(p.team)} title={teamName(p.team)} className="cc-logo-sm" />{fmtLine(p.line)}</span>;
                     const cls = g.status === "final" ? gradePick(g, p) : g.status === "live" ? "live" : "own-upcoming";
                     cells.push(<td key={i}><span className={"cc-cell " + cls}>{label}</span></td>);
                   }
