@@ -4,22 +4,38 @@ import { fetchJsonWithRetry } from "@/lib/fetchJson";
 import Nav from "@/components/Nav";
 
 // Simple Monte Carlo: models each person's weekly score as a normal draw
-// around their season-average points-per-week (5 picks -> mean around
-// 2.0-3.0 typically), simulates the remaining regular-season weeks many
-// times, and reports how often each person finishes top-4 (i.e. makes
-// the 1-4 seed playoff picture). This is a heuristic, not a guarantee --
-// swap in a sharper model later (e.g. per-matchup win probabilities) once
-// there's more season data to calibrate against.
-function simulatePlayoffOdds(standings, weeksRemaining, weeksPlayed, trials = 3000) {
-  if (weeksPlayed === 0 || weeksRemaining <= 0) {
+// around an estimated points-per-week rate, simulates the remaining
+// regular-season weeks many times, and reports how often each person
+// finishes top-4 (i.e. makes the 1-4 seed playoff picture). This is a
+// heuristic, not a guarantee -- swap in a sharper model later (e.g.
+// per-matchup win probabilities) once there's more season data to
+// calibrate against.
+//
+// Each person's estimated rate is blended with a neutral "nobody's shown
+// anything yet" baseline (0.5 points per pick, i.e. a coin flip), weighted
+// by how many of their picks have actually been decided so far. With zero
+// games decided, everyone blends to the exact same neutral rate -- so
+// week 1 correctly shows everyone at roughly the same starting odds,
+// rather than snapping to false 100%/0% certainty off a couple of
+// early games.
+function simulatePlayoffOdds(standings, weeksRemaining, trials = 3000) {
+  if (weeksRemaining <= 0) {
     const sorted = [...standings].sort((a, b) => b.pts - a.pts);
     const result = {};
     sorted.forEach((s, i) => { result[s.user_id] = i < 4 ? 100 : 0; });
     return result;
   }
-  const meanPerWeek = Object.fromEntries(standings.map((s) => [s.user_id, s.pts / weeksPlayed]));
-  const madePlayoffs = Object.fromEntries(standings.map((s) => [s.user_id, 0]));
 
+  const PRIOR_MEAN_PER_PICK = 0.5; // neutral expectation before any real data
+  const PRIOR_WEIGHT = 25; // roughly 5 weeks' worth of picks before real performance dominates the estimate
+
+  const meanPerWeek = {};
+  standings.forEach((s) => {
+    const blended = (s.pts + PRIOR_WEIGHT * PRIOR_MEAN_PER_PICK) / ((s.gamesDecided || 0) + PRIOR_WEIGHT);
+    meanPerWeek[s.user_id] = blended * 5; // 5 picks per week
+  });
+
+  const madePlayoffs = Object.fromEntries(standings.map((s) => [s.user_id, 0]));
   for (let t = 0; t < trials; t++) {
     const projected = standings.map((s) => {
       let total = s.pts;
@@ -72,7 +88,7 @@ export default function PlayoffsPage() {
     </>
   );
 
-  const odds = simulatePlayoffOdds(standings, weeksRemaining, weeksPlayed || 1);
+  const odds = simulatePlayoffOdds(standings, weeksRemaining);
   const bracketSeed = (n) => seeds.find((s) => s.playoff_seed === n)?.display_name || `Seed ${n}`;
 
   return (

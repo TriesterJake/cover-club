@@ -103,7 +103,7 @@ export default function ScoreboardPage() {
             <table className="cc-grid">
               <thead><tr><th>Name</th><th>Pick 1</th><th>Pick 2</th><th>Pick 3</th><th>Pick 4</th><th>Pick 5</th><th>Total</th></tr></thead>
               <tbody>
-                {members.map((m) => {
+                {[...members].sort((a, b) => totalFor(b.user_id) - totalFor(a.user_id)).map((m) => {
                   const mine = m.user_id === myId;
                   const theirPicks = games.filter((g) => pickFor(m.user_id, g.id));
                   const cells = [];

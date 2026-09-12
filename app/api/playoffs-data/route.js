@@ -27,11 +27,16 @@ export async function GET() {
 
   const { data: graded } = await admin.from("graded_picks").select("user_id, points").eq("game_status", "final");
   const totals = {};
-  (leagueMembers || []).forEach((m) => { totals[m.user_id] = 0; });
-  (graded || []).forEach((g) => { totals[g.user_id] = (totals[g.user_id] || 0) + Number(g.points); });
+  const gamesDecided = {};
+  (leagueMembers || []).forEach((m) => { totals[m.user_id] = 0; gamesDecided[m.user_id] = 0; });
+  (graded || []).forEach((g) => {
+    totals[g.user_id] = (totals[g.user_id] || 0) + Number(g.points);
+    gamesDecided[g.user_id] = (gamesDecided[g.user_id] || 0) + 1;
+  });
 
   const standings = (leagueMembers || []).map((m) => ({
-    user_id: m.user_id, display_name: m.profiles?.display_name, pts: totals[m.user_id] || 0,
+    user_id: m.user_id, display_name: m.profiles?.display_name,
+    pts: totals[m.user_id] || 0, gamesDecided: gamesDecided[m.user_id] || 0,
   }));
 
   return NextResponse.json({ isCommissioner: membership.role === "commissioner", seeds, standings, weeksPlayed, weeksRemaining });
