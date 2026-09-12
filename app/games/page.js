@@ -4,10 +4,12 @@ import { fmtLine, gradePick, liveLean } from "@/lib/grading";
 import { teamName, teamLogo } from "@/lib/teamNames";
 import { formatKickoff } from "@/lib/formatKickoff";
 import { pickCurrentWeek } from "@/lib/currentWeek";
+import { fetchJsonWithRetry } from "@/lib/fetchJson";
 import Nav from "@/components/Nav";
 
 export default function GamesPage() {
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [isCommissioner, setIsCommissioner] = useState(false);
   const [myId, setMyId] = useState(null);
   const [weeks, setWeeks] = useState([]);
@@ -18,29 +20,42 @@ export default function GamesPage() {
 
   useEffect(() => {
     (async () => {
-      const res = await fetch("/api/league-weeks");
-      const data = await res.json();
-      setWeeks(data.weeks || []);
-      setScope(pickCurrentWeek(data.weeks || [])?.id || null);
+      try {
+        const data = await fetchJsonWithRetry("/api/league-weeks");
+        setWeeks(data.weeks || []);
+        setScope(pickCurrentWeek(data.weeks || [])?.id || null);
+      } catch {
+        setLoadError(true);
+        setLoading(false);
+      }
     })();
   }, []);
 
-  useEffect(() => {
+  const loadWeek = async () => {
     if (!scope) { setLoading(false); return; }
-    (async () => {
-      setLoading(true);
-      const res = await fetch(`/api/week-data?weekId=${scope}`);
-      const data = await res.json();
+    setLoading(true);
+    try {
+      const data = await fetchJsonWithRetry(`/api/week-data?weekId=${scope}`);
+      setLoadError(false);
       setMyId(data.userId);
       setIsCommissioner(data.membership?.role === "commissioner");
       setGames(data.games || []);
       setPicks(data.picks || []);
       setMembers(data.members || []);
-      setLoading(false);
-    })();
-  }, [scope]);
+    } catch {
+      setLoadError(true);
+    }
+    setLoading(false);
+  };
+  useEffect(() => { loadWeek(); }, [scope]);
 
   if (loading) return <><Nav isCommissioner={isCommissioner} /><div className="cc-body">Loading&hellip;</div></>;
+  if (loadError) return (
+    <>
+      <Nav isCommissioner={isCommissioner} />
+      <div className="cc-body">Couldn't load your data just now -- this is usually temporary. <button className="cc-namelink" onClick={loadWeek}>Try again</button></div>
+    </>
+  );
 
   const nameFor = (uid) => (uid === myId ? "You" : members.find((m) => m.user_id === uid)?.display_name || "Someone");
 
@@ -55,6 +70,8 @@ export default function GamesPage() {
         {games.length === 0 && <div className="cc-hiddennote">No games in this week yet.</div>}
         {games.map((g) => {
           const entries = picks.filter((p) => p.game_id === g.id);
+          // Your own pick, if you have one, sorts to the top of the list.
+          const sortedEntries = [...entries].sort((a, b) => (a.user_id === myId ? -1 : b.user_id === myId ? 1 : 0));
           const kickoffPassed = new Date(g.kickoff_at) <= new Date();
           const stillHidden = g.status === "scheduled" && !kickoffPassed;
           return (
@@ -70,15 +87,15 @@ export default function GamesPage() {
                   {teamName(g.home_team)} {g.home_score} &ndash; {teamName(g.away_team)} {g.away_score}{g.status === "live" ? " · " + g.live_clock : ""}
                 </div>
               )}
-              {entries.length === 0 ? (
+              {sortedEntries.length === 0 ? (
                 <div className="cc-hiddennote">
                   {stillHidden
                     ? "You haven't picked this game yet, and everyone else's picks stay hidden until kickoff."
                     : "Nobody picked this game."}
                 </div>
               ) : (
-                entries.map((p) => (
-                  <div className="cc-leaguepickrow" key={p.id}>
+                sortedEntries.map((p) => (
+                  <div className={"cc-leaguepickrow" + (p.user_id === myId ? " you" : "")} key={p.id}>
                     <span>{nameFor(p.user_id)}</span>
                     <span className={g.status === "final" ? "cc-cell " + gradePick(g, p) : g.status === "live" ? "cc-cell " + liveLean(g, p) : ""}>
                       <span className="cc-num">
@@ -88,7 +105,7 @@ export default function GamesPage() {
                   </div>
                 ))
               )}
-              {stillHidden && entries.length > 0 && <div className="cc-hiddennote">Everyone else's picks on this game are hidden until kickoff.</div>}
+              {stillHidden && sortedEntries.length > 0 && <div className="cc-hiddennote">Everyone else's picks on this game are hidden until kickoff.</div>}
             </div>
           );
         })}

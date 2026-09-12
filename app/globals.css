@@ -64,6 +64,7 @@ body {
 .cc-leaguepicks { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); font-size: 13px; }
 .cc-leaguepicks-title { color: var(--text-dim); margin-bottom: 6px; font-size: 12px; }
 .cc-leaguepickrow { display: flex; justify-content: space-between; padding: 3px 0; }
+.cc-leaguepickrow.you { color: var(--accent); font-weight: 600; }
 .cc-namelink { background: none; border: none; color: var(--text); cursor: pointer; font-size: 13px; padding: 0; text-decoration: underline; text-decoration-color: rgba(255,255,255,0.25); }
 .cc-hiddennote { font-size: 12px; color: var(--text-dim); margin-top: 10px; font-style: italic; }
 .cc-scopetoggle { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }

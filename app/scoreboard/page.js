@@ -3,10 +3,12 @@ import { useEffect, useState } from "react";
 import { fmtLine, gradePick, pointsFor } from "@/lib/grading";
 import { teamName, teamLogo } from "@/lib/teamNames";
 import { pickCurrentWeek } from "@/lib/currentWeek";
+import { fetchJsonWithRetry } from "@/lib/fetchJson";
 import Nav from "@/components/Nav";
 
 export default function ScoreboardPage() {
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [isCommissioner, setIsCommissioner] = useState(false);
   const [myId, setMyId] = useState(null);
   const [weeks, setWeeks] = useState([]);
@@ -18,38 +20,51 @@ export default function ScoreboardPage() {
 
   useEffect(() => {
     (async () => {
-      const res = await fetch("/api/league-weeks");
-      const data = await res.json();
-      setWeeks(data.weeks || []);
-      setScope(pickCurrentWeek(data.weeks || [])?.id || "season");
+      try {
+        const data = await fetchJsonWithRetry("/api/league-weeks");
+        setWeeks(data.weeks || []);
+        setScope(pickCurrentWeek(data.weeks || [])?.id || "season");
+      } catch {
+        setLoadError(true);
+        setLoading(false);
+      }
     })();
   }, []);
 
-  useEffect(() => {
+  const loadScope = async () => {
     if (!scope) return;
-    (async () => {
-      setLoading(true);
+    setLoading(true);
+    try {
       if (scope === "season") {
-        const res = await fetch("/api/season-totals");
-        const data = await res.json();
+        const data = await fetchJsonWithRetry("/api/season-totals");
+        setLoadError(false);
         setMyId(data.userId);
         setIsCommissioner(data.isCommissioner);
         setMembers(data.members || []);
         setSeasonPoints(data.totals || {});
       } else {
-        const res = await fetch(`/api/week-data?weekId=${scope}`);
-        const data = await res.json();
+        const data = await fetchJsonWithRetry(`/api/week-data?weekId=${scope}`);
+        setLoadError(false);
         setMyId(data.userId);
         setIsCommissioner(data.membership?.role === "commissioner");
         setGames(data.games || []);
         setPicks(data.picks || []);
         setMembers(data.members || []);
       }
-      setLoading(false);
-    })();
-  }, [scope]);
+    } catch {
+      setLoadError(true);
+    }
+    setLoading(false);
+  };
+  useEffect(() => { loadScope(); }, [scope]);
 
   if (loading) return <><Nav isCommissioner={isCommissioner} /><div className="cc-body">Loading&hellip;</div></>;
+  if (loadError) return (
+    <>
+      <Nav isCommissioner={isCommissioner} />
+      <div className="cc-body">Couldn't load your data just now -- this is usually temporary. <button className="cc-namelink" onClick={loadScope}>Try again</button></div>
+    </>
+  );
 
   const pickFor = (userId, gameId) => picks.find((p) => p.user_id === userId && p.game_id === gameId);
   const totalFor = (userId) => games.reduce((sum, g) => sum + pointsFor(gradePick(g, pickFor(userId, g.id))), 0);

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { fmtLine, gradePick, liveLean } from "@/lib/grading";
+import { fetchJsonWithRetry } from "@/lib/fetchJson";
 import { teamName, teamLogo } from "@/lib/teamNames";
 import { formatKickoff } from "@/lib/formatKickoff";
 import Nav from "@/components/Nav";
@@ -10,6 +11,7 @@ export default function PicksPage() {
   const [userId, setUserId] = useState(null);
   const [isCommissioner, setIsCommissioner] = useState(false);
   const [week, setWeek] = useState(null);
+  const [loadError, setLoadError] = useState(false);
   const [games, setGames] = useState([]);
   const [picks, setPicks] = useState([]);
   const [members, setMembers] = useState([]);
@@ -17,8 +19,15 @@ export default function PicksPage() {
 
   const load = async () => {
     setLoading(true);
-    const res = await fetch("/api/week-data");
-    const data = await res.json();
+    let data;
+    try {
+      data = await fetchJsonWithRetry("/api/week-data");
+    } catch (e) {
+      setLoadError(true);
+      setLoading(false);
+      return;
+    }
+    setLoadError(false);
     setUserId(data.userId);
     setHasLeague(!!data.membership);
     setIsCommissioner(data.membership?.role === "commissioner");
@@ -49,6 +58,14 @@ export default function PicksPage() {
   };
 
   if (loading) return <><Nav isCommissioner={isCommissioner} /><div className="cc-body">Loading&hellip;</div></>;
+  if (loadError) return (
+    <>
+      <Nav isCommissioner={false} />
+      <div className="cc-body">
+        Couldn't load your data just now -- this is usually temporary. <button className="cc-namelink" onClick={load}>Try again</button>
+      </div>
+    </>
+  );
   if (!hasLeague) return (
     <>
       <Nav isCommissioner={false} />
