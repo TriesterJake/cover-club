@@ -3,6 +3,8 @@ import { supabaseServer, supabaseAdmin } from "@/lib/supabaseServer";
 import { refreshOddsForLeague } from "@/lib/oddsApi";
 import { syncScheduleForLeague } from "@/lib/espnScores";
 
+export const maxDuration = 60;
+
 // Manual "resync everything" for the commissioner -- syncs every week's
 // schedule/scores from ESPN and layers DraftKings lines on top, instead
 // of the routine cron's current-week-only default. Uses your own login
