@@ -77,12 +77,12 @@ table.cc-simpletable th { text-align: left; font-family:'Oswald', sans-serif; fo
 table.cc-simpletable td { padding: 10px 6px; border-bottom: 1px solid var(--line); font-size: 14px; }
 table.cc-simpletable tr.you td { color: var(--accent); }
 .cc-gridwrap { overflow-x: auto; margin-top: 6px; border: 1px solid var(--line); border-radius: 6px; }
-table.cc-grid { border-collapse: collapse; width: 100%; }
-table.cc-grid th, table.cc-grid td { padding: 9px 6px; font-size: 12.5px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+table.cc-grid { border-collapse: collapse; width: 100%; min-width: 640px; }
+table.cc-grid th, table.cc-grid td { padding: 9px 10px; font-size: 12.5px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 table.cc-grid th { text-align: left; font-family:'Oswald', sans-serif; color: var(--text-dim); background: var(--panel); position: sticky; top: 0; }
 table.cc-grid td.name-cell { font-family: 'Oswald', sans-serif; background: var(--panel); position: sticky; left: 0; }
 table.cc-grid tr.you td.name-cell { color: var(--accent); }
-.cc-cell { border-radius: 4px; padding: 6px 6px; display: inline-block; min-width: 40px; text-align: center; }
+.cc-cell { border-radius: 4px; padding: 6px 8px; display: inline-block; min-width: 58px; text-align: center; }
 .cc-cell.win { background: var(--win-bg); color: var(--win); }
 .cc-cell.loss { background: var(--loss-bg); color: #E58C7C; }
 .cc-cell.push { background: var(--push-bg); color: var(--push); }
