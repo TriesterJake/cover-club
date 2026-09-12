@@ -72,7 +72,9 @@ export default function GamesPage() {
               )}
               {entries.length === 0 ? (
                 <div className="cc-hiddennote">
-                  {g.status === "scheduled" ? "No visible picks on this game yet." : "Nobody picked this game."}
+                  {stillHidden
+                    ? "You haven't picked this game yet, and everyone else's picks stay hidden until kickoff."
+                    : "Nobody picked this game."}
                 </div>
               ) : (
                 entries.map((p) => (
@@ -86,7 +88,7 @@ export default function GamesPage() {
                   </div>
                 ))
               )}
-              {stillHidden && <div className="cc-hiddennote">Everyone else's picks on this game are hidden until kickoff.</div>}
+              {stillHidden && entries.length > 0 && <div className="cc-hiddennote">Everyone else's picks on this game are hidden until kickoff.</div>}
             </div>
           );
         })}

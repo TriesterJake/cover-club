@@ -8,18 +8,30 @@ import Nav from "@/components/Nav";
 function LineInput({ value, onCommit }) {
   const [draft, setDraft] = useState(String(value));
   useEffect(() => { setDraft(String(value)); }, [value]);
+
+  const step = (delta) => {
+    const current = parseFloat(draft);
+    const next = (isNaN(current) ? 0 : current) + delta;
+    setDraft(String(next));
+    onCommit(next); // explicit click -- commit right away, no need to wait for blur
+  };
+
   return (
-    <input
-      type="number"
-      step="0.5"
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={() => {
-        const parsed = parseFloat(draft);
-        if (!isNaN(parsed)) onCommit(parsed);
-        else setDraft(String(value)); // invalid/empty -- revert instead of saving garbage
-      }}
-    />
+    <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+      <button type="button" className="cc-linestep" onClick={() => step(-0.5)}>&minus;</button>
+      <input
+        type="number"
+        step="0.5"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => {
+          const parsed = parseFloat(draft);
+          if (!isNaN(parsed)) onCommit(parsed);
+          else setDraft(String(value)); // invalid/empty -- revert instead of saving garbage
+        }}
+      />
+      <button type="button" className="cc-linestep" onClick={() => step(0.5)}>+</button>
+    </div>
   );
 }
 
@@ -358,10 +370,7 @@ export default function CommissionerPage() {
                                 <option value={g.away_team}>{g.away_team}</option>
                               </select>
                               {p && (
-                                <div className="cc-lineinput">
-                                  <span className="sign">{p.line > 0 ? "+" : ""}</span>
-                                  <LineInput value={p.line} onCommit={(line) => setPick(g, m.user_id, p.team, line)} />
-                                </div>
+                                <LineInput value={p.line} onCommit={(line) => setPick(g, m.user_id, p.team, line)} />
                               )}
                             </div>
                           </td>
