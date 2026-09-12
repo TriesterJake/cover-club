@@ -19,7 +19,6 @@ export async function POST(request) {
     .from("picks").select("id").eq("game_id", gameId).eq("user_id", userId).maybeSingle();
 
   const { error } = await admin.from("picks").upsert({
-    id: existing?.id,
     game_id: gameId,
     user_id: userId,
     team,
