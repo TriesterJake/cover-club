@@ -64,6 +64,19 @@ export default function CommissionerPage() {
   const [seasonStartDate, setSeasonStartDate] = useState("");
   const [seasonSetupMsg, setSeasonSetupMsg] = useState(null);
   const [resyncMsg, setResyncMsg] = useState(null);
+  const [seedMsg, setSeedMsg] = useState(null);
+
+  const setSeed = async (userId, seed) => {
+    const res = await fetch("/api/commissioner/set-seed", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, seed: seed === "" ? null : Number(seed) }),
+    });
+    const body = await res.json();
+    if (!res.ok) { setSeedMsg(body.error); return; }
+    setSeedMsg(null);
+    load();
+  };
   const [resyncing, setResyncing] = useState(false);
 
   const resyncAll = async () => {
@@ -94,7 +107,13 @@ export default function CommissionerPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     setMyId(user.id);
-    const { data: membership } = await supabase.from("league_members").select("league_id, role").eq("user_id", user.id).limit(1).single();
+    let membership, membershipErr;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const result = await supabase.from("league_members").select("league_id, role").eq("user_id", user.id).limit(1).maybeSingle();
+      membership = result.data; membershipErr = result.error;
+      if (!membershipErr) break;
+      await new Promise((r) => setTimeout(r, 700));
+    }
     if (!membership || membership.role !== "commissioner") { setIsCommissioner(false); setLoading(false); return; }
     setIsCommissioner(true);
     setLeagueId(membership.league_id);
@@ -106,8 +125,8 @@ export default function CommissionerPage() {
     setWeeks(leagueWeeks || []);
     setSelectedWeek((prev) => prev || pickCurrentWeek(leagueWeeks || [])?.id || null);
 
-    const { data: leagueMembers } = await supabase.from("league_members").select("user_id, role, profiles(display_name, email)").eq("league_id", membership.league_id);
-    setMembers((leagueMembers || []).map((m) => ({ user_id: m.user_id, display_name: m.profiles?.display_name, email: m.profiles?.email, role: m.role })));
+    const { data: leagueMembers } = await supabase.from("league_members").select("user_id, role, playoff_seed, profiles(display_name, email)").eq("league_id", membership.league_id);
+    setMembers((leagueMembers || []).map((m) => ({ user_id: m.user_id, display_name: m.profiles?.display_name, email: m.profiles?.email, role: m.role, playoff_seed: m.playoff_seed })));
 
     setLoading(false);
   };
@@ -129,7 +148,8 @@ export default function CommissionerPage() {
 
   const removeMember = async (userId) => {
     if (!window.confirm("Remove this person from the league? Their past picks stay in the history, but they'll lose access.")) return;
-    await supabase.from("league_members").delete().eq("league_id", leagueId).eq("user_id", userId);
+    const { error } = await supabase.from("league_members").delete().eq("league_id", leagueId).eq("user_id", userId);
+    if (error) { alert(error.message); return; }
     load();
   };
 
@@ -182,7 +202,8 @@ export default function CommissionerPage() {
 
   const removeGame = async (game) => {
     if (!window.confirm(`Remove ${game.home_team} vs ${game.away_team}? This also deletes any picks on it.`)) return;
-    await supabase.from("games").delete().eq("id", game.id);
+    const { error } = await supabase.from("games").delete().eq("id", game.id);
+    if (error) { alert(error.message); return; }
     loadWeekData(selectedWeek);
   };
 
@@ -265,6 +286,30 @@ export default function CommissionerPage() {
             {addError && <div className="cc-warning">{addError}</div>}
             <p className="cc-hiddennote">They need to have visited the site and signed in at least once before you can add them by email.</p>
           </div>
+        </details>
+
+        <details style={{ marginBottom: 18 }}>
+          <summary className="cc-namelink" style={{ cursor: "pointer" }}>Playoff seeds</summary>
+          <p className="cc-hiddennote" style={{ marginTop: 8 }}>
+            Set once the regular season ends. Seeds 1 &amp; 2 get a bye into the final round; 3 &amp; 4 play each
+            other in the Wild Card week. Each seed number can only belong to one person -- assigning it to someone
+            else automatically clears it from whoever had it.
+          </p>
+          <div style={{ marginTop: 10 }}>
+            {members.map((m) => (
+              <div className="cc-leaguepickrow" key={m.user_id}>
+                <span>{m.display_name}</span>
+                <select value={m.playoff_seed || ""} onChange={(e) => setSeed(m.user_id, e.target.value)} style={{ padding: 6 }}>
+                  <option value="">No seed</option>
+                  <option value="1">Seed 1 (bye)</option>
+                  <option value="2">Seed 2 (bye)</option>
+                  <option value="3">Seed 3</option>
+                  <option value="4">Seed 4</option>
+                </select>
+              </div>
+            ))}
+          </div>
+          {seedMsg && <div className="cc-warning">{seedMsg}</div>}
         </details>
 
         <div style={{ marginBottom: 18 }}>
