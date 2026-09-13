@@ -22,7 +22,11 @@ export default function Nav({ isCommissioner }) {
   useEffect(() => {
     fetch("/api/league-info")
       .then((r) => r.json())
-      .then((d) => { setLeagueName(d.name); setSeasonYear(d.season_year); })
+      .then((d) => {
+        setLeagueName(d.name);
+        setSeasonYear(d.season_year);
+        if (d.name) document.title = d.name;
+      })
       .catch(() => {});
   }, []);
 
