@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseClient";
@@ -15,6 +16,15 @@ const TABS = [
 export default function Nav({ isCommissioner }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [leagueName, setLeagueName] = useState(null);
+  const [seasonYear, setSeasonYear] = useState(null);
+
+  useEffect(() => {
+    fetch("/api/league-info")
+      .then((r) => r.json())
+      .then((d) => { setLeagueName(d.name); setSeasonYear(d.season_year); })
+      .catch(() => {});
+  }, []);
 
   const signOut = async () => {
     const supabase = supabaseBrowser();
@@ -26,8 +36,8 @@ export default function Nav({ isCommissioner }) {
     <div className="cc-masthead">
       <div className="cc-masthead-top">
         <div>
-          <h1 className="cc-title">The Cover Club</h1>
-          <p className="cc-sub">Family pick&rsquo;em &middot; 2026 season</p>
+          <h1 className="cc-title">{leagueName || "Cover Club"}</h1>
+          <p className="cc-sub">Family pick&rsquo;em{seasonYear ? ` · ${seasonYear} season` : ""}</p>
         </div>
         <button className="cc-signout" onClick={signOut}>Sign out</button>
       </div>
