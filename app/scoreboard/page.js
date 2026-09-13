@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { fmtLine, gradePick, pointsFor, liveLean } from "@/lib/grading";
 import { teamName, teamLogo } from "@/lib/teamNames";
 import { pickCurrentWeek } from "@/lib/currentWeek";
@@ -7,6 +8,7 @@ import { fetchJsonWithRetry } from "@/lib/fetchJson";
 import Nav from "@/components/Nav";
 
 export default function ScoreboardPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [isCommissioner, setIsCommissioner] = useState(false);
@@ -119,10 +121,14 @@ export default function ScoreboardPage() {
                     const lean = g.status === "live" ? liveLean(g, p) : null;
                     cells.push(
                       <td key={i}>
-                        <span className={"cc-cell " + cls}>
+                        <button
+                          type="button"
+                          className={"cc-cell cc-cell-btn " + cls}
+                          onClick={() => router.push(`/games?week=${scope}&highlight=${g.id}`)}
+                        >
                           {lean && <span className={"cc-coverdot " + lean} title={lean === "win" ? "Currently covering" : lean === "push" ? "Right on the number" : "Currently not covering"}></span>}
                           {label}
-                        </span>
+                        </button>
                       </td>
                     );
                   }

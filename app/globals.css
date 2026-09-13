@@ -90,6 +90,12 @@ table.cc-grid tr.you td.name-cell { color: var(--accent); }
 .cc-cell.open { color: var(--text-dim); }
 .cc-cell.hidden { background: rgba(255,255,255,0.04); color: var(--text-dim); }
 .cc-cell.own-upcoming { border: 1px solid var(--accent); color: var(--accent); background: rgba(111,168,214,0.08); }
+.cc-cell-btn { border: none; font-family: inherit; cursor: pointer; }
+@keyframes cc-flash-highlight {
+  0%, 100% { background: transparent; }
+  20%, 80% { background: rgba(111,168,214,0.18); }
+}
+.cc-game.cc-highlighted { animation: cc-flash-highlight 2s ease-in-out 1; border-radius: 6px; }
 .cc-legend { display: flex; gap: 16px; margin-top: 14px; flex-wrap: wrap; font-size: 12px; color: var(--text-dim); }
 .cc-legend span { display: flex; align-items: center; gap: 6px; }
 .cc-legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }

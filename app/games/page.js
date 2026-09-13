@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { fmtLine, gradePick, liveLean } from "@/lib/grading";
 import { teamName, teamLogo } from "@/lib/teamNames";
 import { formatKickoff } from "@/lib/formatKickoff";
@@ -7,13 +8,18 @@ import { pickCurrentWeek } from "@/lib/currentWeek";
 import { fetchJsonWithRetry } from "@/lib/fetchJson";
 import Nav from "@/components/Nav";
 
-export default function GamesPage() {
+function GamesPageInner() {
+  const searchParams = useSearchParams();
+  const weekParam = searchParams.get("week");
+  const highlightId = searchParams.get("highlight");
+  const hasScrolledRef = useRef(false);
+
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [isCommissioner, setIsCommissioner] = useState(false);
   const [myId, setMyId] = useState(null);
   const [weeks, setWeeks] = useState([]);
-  const [scope, setScope] = useState(null);
+  const [scope, setScope] = useState(weekParam || null);
   const [games, setGames] = useState([]);
   const [picks, setPicks] = useState([]);
   const [members, setMembers] = useState([]);
@@ -23,7 +29,10 @@ export default function GamesPage() {
       try {
         const data = await fetchJsonWithRetry("/api/league-weeks");
         setWeeks(data.weeks || []);
-        setScope(pickCurrentWeek(data.weeks || [])?.id || null);
+        // If we arrived with a specific week in the URL (e.g. clicked
+        // through from the Scoreboard), honor that instead of defaulting
+        // to the current week.
+        setScope((prev) => prev || pickCurrentWeek(data.weeks || [])?.id || null);
       } catch {
         setLoadError(true);
         setLoading(false);
@@ -48,6 +57,19 @@ export default function GamesPage() {
     setLoading(false);
   };
   useEffect(() => { loadWeek(); }, [scope]);
+
+  // Once the right week's games are actually rendered, scroll to and
+  // briefly highlight the specific game we were sent here for.
+  useEffect(() => {
+    if (!highlightId || loading || hasScrolledRef.current) return;
+    const el = document.getElementById(`game-${highlightId}`);
+    if (el) {
+      hasScrolledRef.current = true;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("cc-highlighted");
+      setTimeout(() => el.classList.remove("cc-highlighted"), 2200);
+    }
+  }, [highlightId, loading, games]);
 
   if (loading) return <><Nav isCommissioner={isCommissioner} /><div className="cc-body">Loading&hellip;</div></>;
   if (loadError) return (
@@ -75,7 +97,7 @@ export default function GamesPage() {
           const kickoffPassed = new Date(g.kickoff_at) <= new Date();
           const stillHidden = g.status === "scheduled" && !kickoffPassed;
           return (
-            <div className="cc-game" key={g.id}>
+            <div className="cc-game" id={`game-${g.id}`} key={g.id}>
               <div className="cc-gamehead">
                 <span className="cc-when">
                   <img src={teamLogo(g.home_team)} alt="" className="cc-logo-sm" />{teamName(g.home_team)} / <img src={teamLogo(g.away_team)} alt="" className="cc-logo-sm" />{teamName(g.away_team)} &middot; {formatKickoff(g.kickoff_at)}
@@ -111,5 +133,13 @@ export default function GamesPage() {
         })}
       </div>
     </>
+  );
+}
+
+export default function GamesPage() {
+  return (
+    <Suspense fallback={<div className="cc-body">Loading&hellip;</div>}>
+      <GamesPageInner />
+    </Suspense>
   );
 }
