@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseClient";
 import Nav from "@/components/Nav";
+import { authedFetch } from "@/lib/authedFetch";
 
 export default function ProfilePage() {
   const supabase = supabaseBrowser();
@@ -35,7 +36,7 @@ export default function ProfilePage() {
 
   const leaveLeague = async () => {
     if (!window.confirm("Leave this league? You'll need to be re-added by the commissioner to rejoin.")) return;
-    const res = await fetch("/api/leave-league", { method: "POST" });
+    const res = await authedFetch("/api/leave-league", { method: "POST" });
     const body = await res.json();
     if (!res.ok) { alert(body.error); return; }
     router.push("/create-league");

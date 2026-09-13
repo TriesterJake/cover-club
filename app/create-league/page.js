@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Nav from "@/components/Nav";
+import { authedFetch } from "@/lib/authedFetch";
 
 export default function CreateLeaguePage() {
   const router = useRouter();
@@ -20,7 +21,7 @@ export default function CreateLeaguePage() {
     setCreating(true);
     setError(null);
 
-    const res = await fetch("/api/create-league", {
+    const res = await authedFetch("/api/create-league", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, season_year: seasonYear, picks_per_week: Number(picksPerWeek) }),

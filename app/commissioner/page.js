@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabaseClient";
+import { authedFetch } from "@/lib/authedFetch";
 import { pickCurrentWeek } from "@/lib/currentWeek";
 import Nav from "@/components/Nav";
 
@@ -67,7 +68,7 @@ export default function CommissionerPage() {
   const [seedMsg, setSeedMsg] = useState(null);
 
   const setSeed = async (userId, seed) => {
-    const res = await fetch("/api/commissioner/set-seed", {
+    const res = await authedFetch("/api/commissioner/set-seed", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId, seed: seed === "" ? null : Number(seed) }),
@@ -82,7 +83,7 @@ export default function CommissionerPage() {
   const resyncAll = async () => {
     setResyncing(true);
     setResyncMsg(null);
-    const res = await fetch("/api/commissioner/resync-all", { method: "POST" });
+    const res = await authedFetch("/api/commissioner/resync-all", { method: "POST" });
     const body = await res.json();
     setResyncing(false);
     if (!res.ok) { setResyncMsg(body.error || "Something went wrong"); return; }
@@ -223,7 +224,7 @@ export default function CommissionerPage() {
       const others = prev.filter((p) => !(p.user_id === userId && p.game_id === game.id));
       return [...others, { ...(existing || {}), id: existing?.id, game_id: game.id, user_id: userId, team, line }];
     });
-    const res = await fetch("/api/commissioner/set-pick", {
+    const res = await authedFetch("/api/commissioner/set-pick", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ gameId: game.id, userId, team, line }),
@@ -240,7 +241,7 @@ export default function CommissionerPage() {
     if (!existing) return;
     setPicks((prev) => prev.filter((p) => !(p.user_id === userId && p.game_id === game.id)));
     setWarning(null);
-    await fetch("/api/commissioner/clear-pick", {
+    await authedFetch("/api/commissioner/clear-pick", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ gameId: game.id, userId }),

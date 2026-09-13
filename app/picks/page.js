@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { fmtLine, gradePick, liveLean } from "@/lib/grading";
 import { fetchJsonWithRetry } from "@/lib/fetchJson";
+import { authedFetch } from "@/lib/authedFetch";
 import { teamName, teamLogo } from "@/lib/teamNames";
 import { formatKickoff } from "@/lib/formatKickoff";
 import Nav from "@/components/Nav";
@@ -47,7 +48,7 @@ export default function PicksPage() {
   const submitPick = async (game, team) => {
     const line = team === game.home_team ? game.ref_spread_home : -game.ref_spread_home;
     if (!window.confirm(`Lock in ${team} ${fmtLine(line)}? This can't be changed once submitted.`)) return;
-    const res = await fetch("/api/picks/submit", {
+    const res = await authedFetch("/api/picks/submit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ gameId: game.id, team, line }),
