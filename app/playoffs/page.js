@@ -130,15 +130,17 @@ export default function PlayoffsPage() {
         )}
 
         <div className="cc-weeklabel" style={{ display: "block", margin: "24px 0 4px" }}>Chance of making the playoffs</div>
-        {weeksPlayed === 0 ? (
+        {weeksPlayed < 3 ? (
           <p className="cc-hiddennote" style={{ marginTop: 0 }}>
-            Playoff odds will show up once the current week is fully wrapped up -- a single week in progress isn't
-            enough real data to project from yet.
+            Playoff odds will show up after a few full weeks of real results ({weeksPlayed} of 3 so far) --
+            there isn't enough data yet for even a rough estimate to mean much.
           </p>
         ) : (
           <>
             <p className="cc-hiddennote" style={{ marginTop: 0 }}>
               Simulated from each person's scoring rate so far, with {weeksRemaining} week{weeksRemaining === 1 ? "" : "s"} left in the regular season.
+              <strong> These are estimated odds, not exact</strong> -- a simulation based on limited data, meant as a fun
+              rough guide rather than a guarantee.
             </p>
             {[...standings].sort((a, b) => (odds[b.user_id] || 0) - (odds[a.user_id] || 0)).map((s) => (
               <div className="cc-oddsrow" key={s.user_id} style={{ marginBottom: 12 }}>
