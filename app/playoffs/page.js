@@ -3,22 +3,25 @@ import { useEffect, useState } from "react";
 import { fetchJsonWithRetry } from "@/lib/fetchJson";
 import Nav from "@/components/Nav";
 
-// Simple Monte Carlo: models each person's weekly score as a normal draw
-// around an estimated points-per-week rate, simulates the remaining
-// regular-season weeks many times, and reports how often each person
-// finishes top-4 (i.e. makes the 1-4 seed playoff picture). This is a
-// heuristic, not a guarantee -- swap in a sharper model later (e.g.
-// per-matchup win probabilities) once there's more season data to
-// calibrate against.
+// Monte Carlo simulation: projects everyone's remaining weeks forward many
+// times and counts how often each person actually lands in the top 4,
+// which is what makes this a genuine relative comparison against the real
+// field in this league -- not a comparison against some fixed external
+// bar that may not match how this particular season is playing out.
 //
-// Each person's estimated rate is blended with a neutral "nobody's shown
-// anything yet" baseline (0.5 points per pick, i.e. a coin flip), weighted
-// by how many of their picks have actually been decided so far. With zero
-// games decided, everyone blends to the exact same neutral rate -- so
-// week 1 correctly shows everyone at roughly the same starting odds,
-// rather than snapping to false 100%/0% certainty off a couple of
-// early games.
-function simulatePlayoffOdds(standings, weeksRemaining, trials = 3000) {
+// The one thing that needs care is each person's estimated points-per-
+// week rate going into that simulation: with only a little real data,
+// that estimate is noisy, and simulating forward from a noisy estimate
+// as if it were certain is what caused early weeks to look falsely
+// decisive. The fix: blend each person's own rate toward THIS SEASON'S
+// own current league-wide average (not a fixed assumption, not last
+// season's numbers) -- weighted by how many of their own picks have
+// actually been decided. With little data, everyone stays close to the
+// group's own current average; as real weeks accumulate, individual
+// differences increasingly take over.
+const PRIOR_WEIGHT = 25; // roughly 5 weeks' worth of picks before someone's own rate outweighs the group average
+
+function estimatePlayoffOdds(standings, weeksRemaining, trials = 3000) {
   if (weeksRemaining <= 0) {
     const sorted = [...standings].sort((a, b) => b.pts - a.pts);
     const result = {};
@@ -26,12 +29,13 @@ function simulatePlayoffOdds(standings, weeksRemaining, trials = 3000) {
     return result;
   }
 
-  const PRIOR_MEAN_PER_PICK = 0.5; // neutral expectation before any real data
-  const PRIOR_WEIGHT = 25; // roughly 5 weeks' worth of picks before real performance dominates the estimate
+  const totalPoints = standings.reduce((sum, s) => sum + s.pts, 0);
+  const totalGames = standings.reduce((sum, s) => sum + (s.gamesDecided || 0), 0);
+  const leagueAvgPerPick = totalGames > 0 ? totalPoints / totalGames : 0.5;
 
   const meanPerWeek = {};
   standings.forEach((s) => {
-    const blended = (s.pts + PRIOR_WEIGHT * PRIOR_MEAN_PER_PICK) / ((s.gamesDecided || 0) + PRIOR_WEIGHT);
+    const blended = (s.pts + PRIOR_WEIGHT * leagueAvgPerPick) / ((s.gamesDecided || 0) + PRIOR_WEIGHT);
     meanPerWeek[s.user_id] = blended * 5; // 5 picks per week
   });
 
@@ -88,7 +92,7 @@ export default function PlayoffsPage() {
     </>
   );
 
-  const odds = simulatePlayoffOdds(standings, weeksRemaining);
+  const odds = estimatePlayoffOdds(standings, weeksRemaining);
   const bracketSeed = (n) => seeds.find((s) => s.playoff_seed === n)?.display_name || `Seed ${n}`;
 
   return (
@@ -96,7 +100,7 @@ export default function PlayoffsPage() {
       <Nav isCommissioner={isCommissioner} />
       <div className="cc-body">
         <div className="cc-weeklabel" style={{ display: "block", marginBottom: 10 }}>Format</div>
-        <p className="cc-sub">Seeds 3 &amp; 4 face off pick&rsquo;em style through Wild Card round. The winner joins seeds 1 &amp; 2 (who get a bye) for the Divisional/Conference rounds. Whoever scores highest across those three takes the league.</p>
+        <p className="cc-sub">Seeds 3 &amp; 4 face off pick&rsquo;em style through Wild Card round. The winner joins seeds 1 &amp; 2 (who get a bye) for the Divisional round. Whoever scores highest across those three takes the league.</p>
 
         {seeds.length > 0 && (
           <>
