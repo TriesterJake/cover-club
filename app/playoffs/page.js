@@ -9,17 +9,25 @@ import Nav from "@/components/Nav";
 // field in this league -- not a comparison against some fixed external
 // bar that may not match how this particular season is playing out.
 //
-// The one thing that needs care is each person's estimated points-per-
-// week rate going into that simulation: with only a little real data,
-// that estimate is noisy, and simulating forward from a noisy estimate
-// as if it were certain is what caused early weeks to look falsely
-// decisive. The fix: blend each person's own rate toward THIS SEASON'S
-// own current league-wide average (not a fixed assumption, not last
-// season's numbers) -- weighted by how many of their own picks have
-// actually been decided. With little data, everyone stays close to the
-// group's own current average; as real weeks accumulate, individual
-// differences increasingly take over.
-const PRIOR_WEIGHT = 25; // roughly 5 weeks' worth of picks before someone's own rate outweighs the group average
+// There are two genuinely different kinds of uncertainty here, and both
+// need to be modeled or this overreacts to early weeks:
+//   1. Week-to-week luck -- even a known-skill person has good/bad weeks.
+//   2. Uncertainty about someone's true skill itself -- with only a
+//      little data, we don't actually know who's better yet, even after
+//      blending toward the league's own current average. This second
+//      kind is what was missing before: shrinking the *estimate* still
+//      lets the simulation compound a small, fixed "known" edge into
+//      near-certainty over many weeks. The fix is to redraw each
+//      person's plausible skill level fresh in every trial (wider spread
+//      early in the season, narrower once more real games are decided),
+//      then simulate that trial's weekly luck around it.
+const PRIOR_WEIGHT = 25; // roughly 5 weeks' worth of picks before someone's own results outweigh the group average
+
+function bellNoise(sd) {
+  // Sum of three uniforms is a cheap, dependency-free approximation of a
+  // normal distribution; scaled here to have the given standard deviation.
+  return (Math.random() + Math.random() + Math.random() - 1.5) * (sd / 0.5);
+}
 
 function estimatePlayoffOdds(standings, weeksRemaining, trials = 3000) {
   if (weeksRemaining <= 0) {
@@ -34,19 +42,26 @@ function estimatePlayoffOdds(standings, weeksRemaining, trials = 3000) {
   const leagueAvgPerPick = totalGames > 0 ? totalPoints / totalGames : 0.5;
 
   const meanPerWeek = {};
+  const skillUncertaintySD = {};
   standings.forEach((s) => {
-    const blended = (s.pts + PRIOR_WEIGHT * leagueAvgPerPick) / ((s.gamesDecided || 0) + PRIOR_WEIGHT);
+    const n = (s.gamesDecided || 0) + PRIOR_WEIGHT;
+    const blended = (s.pts + PRIOR_WEIGHT * leagueAvgPerPick) / n;
     meanPerWeek[s.user_id] = blended * 5; // 5 picks per week
+    // How uncertain are we about this person's TRUE rate, not just this
+    // week's luck? Shrinks as more of their real picks get decided.
+    skillUncertaintySD[s.user_id] = Math.sqrt(0.25 / n) * 5;
   });
 
   const madePlayoffs = Object.fromEntries(standings.map((s) => [s.user_id, 0]));
   for (let t = 0; t < trials; t++) {
     const projected = standings.map((s) => {
+      // Redraw this trial's plausible "true" skill level -- this is what
+      // actually keeps early weeks humble, since in many trials a
+      // currently-behind person's true skill draws out ahead anyway.
+      const trueRate = meanPerWeek[s.user_id] + bellNoise(skillUncertaintySD[s.user_id]);
       let total = s.pts;
       for (let w = 0; w < weeksRemaining; w++) {
-        const mean = meanPerWeek[s.user_id];
-        const noise = (Math.random() + Math.random() + Math.random() - 1.5) * 0.8; // roughly bell-shaped
-        total += Math.max(0, mean + noise);
+        total += Math.max(0, trueRate + bellNoise(0.8)); // this week's luck around that trial's skill level
       }
       return { user_id: s.user_id, total };
     });
