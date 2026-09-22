@@ -14,7 +14,7 @@ export default function StatsPage() {
   const [data, setData] = useState(null);
   const [loadError, setLoadError] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [scope, setScope] = useState("teams"); // teams | people | h2h
+  const [scope, setScope] = useState("teams"); // teams | people
 
   async function load(isRetry = false) {
     setLoading(true);
@@ -62,7 +62,7 @@ export default function StatsPage() {
     );
   }
 
-  const { teamStats, favoriteVsUnderdog, personStats, headToHead, weekById } = data;
+  const { teamStats, favoriteVsUnderdog, personStats, weekById, viewerUserId } = data;
 
   return (
     <>
@@ -88,21 +88,18 @@ export default function StatsPage() {
           >
             People
           </button>
-          <button
-            className={"cc-scopebtn" + (scope === "h2h" ? " active" : "")}
-            onClick={() => setScope("h2h")}
-          >
-            Head-to-Head
-          </button>
         </div>
 
         {scope === "teams" && (
           <TeamsTab teamStats={teamStats} favoriteVsUnderdog={favoriteVsUnderdog} />
         )}
         {scope === "people" && (
-          <PeopleTab personStats={personStats} weekById={weekById} />
+          <PeopleTab
+            personStats={personStats}
+            weekById={weekById}
+            viewerUserId={viewerUserId}
+          />
         )}
-        {scope === "h2h" && <HeadToHeadTab headToHead={headToHead} />}
       </div>
     </>
   );
@@ -114,6 +111,9 @@ function TeamsTab({ teamStats, favoriteVsUnderdog }) {
   return (
     <section>
       <p className="cc-weeklabel" style={{ marginTop: 18 }}>Favorites vs. underdogs, league-wide</p>
+      <p className="cc-hiddennote" style={{ marginTop: 0, marginBottom: 10 }}>
+        Every graded pick, split by whether the person picked the favorite or the underdog on their own line.
+      </p>
       <table className="cc-simpletable">
         <thead>
           <tr>
@@ -156,6 +156,14 @@ function TeamsTab({ teamStats, favoriteVsUnderdog }) {
       </table>
 
       <p className="cc-weeklabel" style={{ marginTop: 26 }}>Team cover rate &amp; popularity</p>
+      <div className="cc-statnote">
+        <p><strong>ATS record</strong> (against-the-spread): the team&rsquo;s own win-loss-push record versus the closing line on each game &mdash; not tied to who picked what.</p>
+        <p><strong>Cover rate</strong>: that ATS record as a win percentage, pushes excluded.</p>
+        <p><strong>Pick win rate</strong>: of the people who actually picked this team, how many won <em>their own</em> pick. This can differ from cover rate, because each person&rsquo;s pick is graded on the line they had when they picked &mdash; not the closing line used above.</p>
+        <p>
+          The &ldquo;closing line&rdquo; here is each game&rsquo;s current <code>ref_spread_home</code> value &mdash; the last DraftKings number our odds sync wrote before kickoff (it refreshes roughly every minute right up until then). It&rsquo;s not a separately captured snapshot, just whatever the last successful sync saw, so treat it as very close to the true closing number rather than guaranteed exact.
+        </p>
+      </div>
       <table className="cc-simpletable">
         <thead>
           <tr>
@@ -188,36 +196,47 @@ function TeamsTab({ teamStats, favoriteVsUnderdog }) {
   );
 }
 
-function PeopleTab({ personStats, weekById }) {
+function PeopleTab({ personStats, weekById, viewerUserId }) {
+  const you = personStats.find((p) => p.userId === viewerUserId);
+  const everyoneElse = personStats.filter((p) => p.userId !== viewerUserId);
+  const ordered = you ? [you, ...everyoneElse] : personStats;
+
   return (
-    <div className="cc-statgrid">
-      {personStats.map((p) => (
-        <div key={p.userId} className="cc-statcard">
-          <p className="cc-team" style={{ marginBottom: 8 }}>{p.displayName}</p>
-          <div className="cc-statlist">
-            <StatRow label="Favorite team" value={p.favoriteTeam ? `${teamName(p.favoriteTeam)} (${p.favoriteTeamCount}x)` : "—"} />
-            <StatRow
-              label="Favorite vs. underdog"
-              value={`${pct(p.favLeanRate)} favorites (${p.favLeanCount} fav / ${p.dogLeanCount} dog${p.pickemCount ? ` / ${p.pickemCount} even` : ""})`}
-            />
-            <StatRow label="Home vs. away" value={`${pct(p.homeRate)} home (${p.homeCount} home / ${p.awayCount} away)`} />
-            <StatRow label="Record" value={`${p.wins}-${p.losses}${p.pushes ? `-${p.pushes}` : ""}`} />
-            <StatRow label="Push frequency" value={pct(p.pushRate)} />
-            <StatRow label="Longest win streak" value={p.longestWinStreak} />
-            <StatRow label="Longest losing streak" value={p.longestLossStreak} />
-            <StatRow
-              label="Current streak"
-              value={p.currentStreak === 0 ? "—" : p.currentStreak > 0 ? `${p.currentStreak}W` : `${Math.abs(p.currentStreak)}L`}
-            />
-            <StatRow
-              label="Best week"
-              value={p.bestWeekId ? `${weekById[p.bestWeekId]?.label || "Week"} — ${p.bestWeekPoints} pts` : "—"}
-            />
-            <StatRow label="Contrarian picks" value={`${p.contrarianCount} made, ${pct(p.contrarianWinRate)} win rate`} />
-            <StatRow label="Went with the field" value={`${p.consensusCount} times, ${pct(p.consensusWinRate)} win rate`} />
-          </div>
-        </div>
-      ))}
+    <div>
+      <p className="cc-hiddennote" style={{ marginTop: 0 }}>
+        <strong>Contrarian picks</strong> are picks made against that game&rsquo;s majority &mdash; the side most of the league picked. <strong>Went with the field</strong> is the opposite: picking the same side as the majority.
+      </p>
+      <div className="cc-statgrid">
+        {ordered.map((p) => {
+          const isYou = p.userId === viewerUserId;
+          return (
+            <div key={p.userId} className={"cc-statcard" + (isYou ? " you" : "")}>
+              {isYou ? (
+                <p className="cc-team cc-you-label" style={{ marginBottom: 2 }}>You</p>
+              ) : null}
+              <p className={isYou ? "cc-sub" : "cc-team"} style={{ marginBottom: 8 }}>
+                {p.displayName}
+              </p>
+              <div className="cc-statlist">
+                <StatRow label="Favorite team" value={p.favoriteTeam ? `${teamName(p.favoriteTeam)} (${p.favoriteTeamCount}x)` : "—"} />
+                <StatRow
+                  label="Favorite vs. underdog"
+                  value={`${pct(p.favLeanRate)} favorites (${p.favLeanCount} fav / ${p.dogLeanCount} dog${p.pickemCount ? ` / ${p.pickemCount} even` : ""})`}
+                />
+                <StatRow label="Home vs. away" value={`${pct(p.homeRate)} home (${p.homeCount} home / ${p.awayCount} away)`} />
+                <StatRow label="Record" value={`${p.wins}-${p.losses}${p.pushes ? `-${p.pushes}` : ""}`} />
+                <StatRow label="Push frequency" value={pct(p.pushRate)} />
+                <StatRow
+                  label="Best week"
+                  value={p.bestWeekId ? `${weekById[p.bestWeekId]?.label || "Week"} — ${p.bestWeekPoints} pts` : "—"}
+                />
+                <StatRow label="Contrarian picks" value={`${p.contrarianCount} made, ${pct(p.contrarianWinRate)} win rate`} />
+                <StatRow label="Went with the field" value={`${p.consensusCount} times, ${pct(p.consensusWinRate)} win rate`} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -228,48 +247,5 @@ function StatRow({ label, value }) {
       <span className="cc-sub">{label}</span>
       <span className="cc-num">{value}</span>
     </div>
-  );
-}
-
-function HeadToHeadTab({ headToHead }) {
-  const sorted = [...headToHead].sort(
-    (a, b) => a.nameA.localeCompare(b.nameA) || a.nameB.localeCompare(b.nameB)
-  );
-
-  if (sorted.length === 0) {
-    return (
-      <p className="cc-sub" style={{ marginTop: 18 }}>
-        No head-to-head matchups yet &mdash; that happens once two people pick opposite sides of the same game.
-      </p>
-    );
-  }
-
-  return (
-    <section>
-      <p className="cc-sub" style={{ marginTop: 18, marginBottom: 6 }}>
-        Counted whenever two people picked opposite sides of the same game &mdash; whoever&rsquo;s pick graded a win takes the head-to-head.
-      </p>
-      <table className="cc-simpletable">
-        <thead>
-          <tr>
-            <th></th>
-            <th></th>
-            <th>Record</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((rec, i) => (
-            <tr key={i}>
-              <td>{rec.nameA}</td>
-              <td>{rec.nameB}</td>
-              <td>
-                {rec.aWins}-{rec.bWins}
-                {rec.ties ? ` (${rec.ties} tied)` : ""}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </section>
   );
 }

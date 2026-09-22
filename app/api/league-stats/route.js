@@ -15,7 +15,7 @@
 
 import { NextResponse } from "next/server";
 import { supabaseServer, supabaseAdmin } from "@/lib/supabaseServer";
-import { teamStats, favoriteVsUnderdog, personStats, headToHead } from "@/lib/stats";
+import { teamStats, favoriteVsUnderdog, personStats } from "@/lib/stats";
 
 export async function GET(request) {
   const supabase = supabaseServer();
@@ -59,12 +59,12 @@ export async function GET(request) {
   const weekIds = (weeks || []).map((w) => w.id);
   if (weekIds.length === 0) {
     return NextResponse.json({
+      viewerUserId: user.id,
       weeks: [],
       people: [],
       teamStats: [],
       favoriteVsUnderdog: {},
       personStats: [],
-      headToHead: [],
     });
   }
 
@@ -115,12 +115,12 @@ export async function GET(request) {
   );
 
   return NextResponse.json({
+    viewerUserId: user.id,
     weeks: weeks || [],
     weekById,
     people,
     teamStats: teamStats(games || [], picks),
     favoriteVsUnderdog: favoriteVsUnderdog(games || [], picks),
     personStats: personStats(games || [], picks, people),
-    headToHead: headToHead(games || [], picks, people),
   });
 }
