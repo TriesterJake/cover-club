@@ -8,6 +8,7 @@ const TABS = [
   { href: "/picks", label: "This Week" },
   { href: "/scoreboard", label: "Scoreboard" },
   { href: "/games", label: "Games" },
+  { href: "/stats", label: "Stats" },
   { href: "/playoffs", label: "Playoffs" },
   { href: "/commissioner", label: "Commissioner Tools", commissionerOnly: true },
   { href: "/profile", label: "Profile" },
