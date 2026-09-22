@@ -117,16 +117,3 @@ table.cc-grid tr.you td.name-cell { color: var(--accent); }
 .cc-lineinput-field { -moz-appearance: textfield; appearance: textfield; }
 .cc-logo { height: 22px; width: 22px; object-fit: contain; vertical-align: middle; margin-right: 7px; }
 .cc-logo-sm { height: 16px; width: 16px; object-fit: contain; vertical-align: middle; margin-right: 5px; }
-
-/* --- Stats page (app/stats/page.js) --- */
-.cc-statgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin-top: 16px; }
-.cc-statcard { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
-.cc-statcard.you { border-color: var(--accent); background: rgba(111,168,214,0.08); }
-.cc-you-label { color: var(--accent); font-weight: 600; }
-.cc-statlist { display: flex; flex-direction: column; gap: 6px; }
-.cc-statrow { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 13px; }
-.cc-statrow .cc-num { font-size: 13px; text-align: right; }
-.cc-statnote { font-size: 12px; color: var(--text-dim); background: rgba(255,255,255,0.04); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; margin: 6px 0 10px; }
-.cc-statnote p { margin: 0 0 6px; }
-.cc-statnote p:last-child { margin-bottom: 0; }
-.cc-statnote code { background: rgba(255,255,255,0.08); border-radius: 3px; padding: 1px 5px; font-size: 11px; }
