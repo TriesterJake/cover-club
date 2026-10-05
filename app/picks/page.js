@@ -54,7 +54,12 @@ export default function PicksPage() {
       body: JSON.stringify({ gameId: game.id, team, line }),
     });
     const body = await res.json();
-    if (!res.ok) { alert(body.error || "Something went wrong"); return; }
+    if (!res.ok) {
+      alert(body.error || "Something went wrong");
+      // If the line moved while the page was open, reload so the new line is shown.
+      if (body.lineChanged) load();
+      return;
+    }
     load();
   };
 

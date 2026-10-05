@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseServer, supabaseAdmin } from "@/lib/supabaseServer";
 
 export async function POST(request) {
-  const { gameId, team, line } = await request.json();
+  const { gameId, team, line: clientLine } = await request.json();
 
   const supabase = supabaseServer();
   const { data: { user }, error: userErr } = await supabase.auth.getUser();
@@ -14,6 +14,29 @@ export async function POST(request) {
   if (!game) return NextResponse.json({ error: "Game not found" }, { status: 404 });
   if (game.status !== "scheduled" || new Date(game.kickoff_at) <= new Date()) {
     return NextResponse.json({ error: "This game has already started -- picks lock at kickoff." }, { status: 400 });
+  }
+
+  // The team must actually be playing in this game.
+  if (team !== game.home_team && team !== game.away_team) {
+    return NextResponse.json({ error: "That team isn't in this game." }, { status: 400 });
+  }
+
+  // The line is decided by the server, never by the browser: it's the
+  // game's current line, from the picked team's side. If the line has moved
+  // since the page was loaded, reject instead of silently locking in a
+  // different number than the person confirmed -- the page reloads so they
+  // can see the new line and decide again.
+  if (game.ref_spread_home === null || game.ref_spread_home === undefined) {
+    return NextResponse.json({ error: "There's no line posted for this game yet." }, { status: 400 });
+  }
+  const homeLine = Number(game.ref_spread_home);
+  const line = team === game.home_team ? homeLine : -homeLine;
+  if (Number(clientLine) !== line) {
+    const shown = (line > 0 ? "+" : "") + line.toFixed(1);
+    return NextResponse.json(
+      { error: `The line just changed -- it's now ${team} ${shown}. Your page has been refreshed; pick again if you still want it.`, lineChanged: true },
+      { status: 409 }
+    );
   }
 
   const { data: existingOnThisGame } = await admin
