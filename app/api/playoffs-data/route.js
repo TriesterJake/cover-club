@@ -9,7 +9,7 @@ export async function GET() {
   const admin = supabaseAdmin();
   const { data: membership } = await admin
     .from("league_members").select("league_id, role").eq("user_id", user.id).limit(1).maybeSingle();
-  if (!membership) return NextResponse.json({ isCommissioner: false, seeds: [], standings: [], weeksPlayed: 0, weeksRemaining: 0 });
+  if (!membership) return NextResponse.json({ isCommissioner: false, seeds: [], standings: [], weeksPlayed: 0, weeksRemaining: 0, picksPerWeek: 5, possiblePoints: 0 });
 
   const { data: leagueMembers } = await admin
     .from("league_members").select("user_id, playoff_seed, profiles(display_name)").eq("league_id", membership.league_id);
@@ -26,6 +26,15 @@ export async function GET() {
   const weeksPlayed = completedWeeks.length;
   const weeksRemaining = Math.max(0, (leagueWeeks || []).length - weeksPlayed);
   const completedWeekIds = completedWeeks.map((w) => w.id);
+
+  // Everyone is treated as if they made a full set of picks every week:
+  // a skipped pick is simply a point they didn't earn. So the points
+  // available so far is the same for every person (weeks played x picks
+  // per week), no matter how many picks they actually submitted.
+  const { data: leagueRow } = await admin
+    .from("leagues").select("picks_per_week").eq("id", membership.league_id).single();
+  const picksPerWeek = leagueRow?.picks_per_week ?? 5;
+  const possiblePoints = weeksPlayed * picksPerWeek;
 
   // Only pull results from weeks that have FULLY concluded -- the current
   // in-progress week's already-decided games (e.g. a Thursday night game)
@@ -48,5 +57,8 @@ export async function GET() {
     pts: totals[m.user_id] || 0, gamesDecided: gamesDecided[m.user_id] || 0,
   }));
 
-  return NextResponse.json({ isCommissioner: membership.role === "commissioner", seeds, standings, weeksPlayed, weeksRemaining });
+  return NextResponse.json({
+    isCommissioner: membership.role === "commissioner", seeds, standings,
+    weeksPlayed, weeksRemaining, picksPerWeek, possiblePoints,
+  });
 }

@@ -29,7 +29,12 @@ function bellNoise(sd) {
   return (Math.random() + Math.random() + Math.random() - 1.5) * (sd / 0.5);
 }
 
-function estimatePlayoffOdds(standings, weeksRemaining, trials = 3000) {
+// Everyone is treated as making a full set of picks every week, whether
+// or not they actually did: a skipped pick is just a point not earned.
+// So every person's rate is (points earned) / (points available so far),
+// and the points available so far (weeks played x picks per week) is the
+// same number for everyone.
+function estimatePlayoffOdds(standings, weeksRemaining, possiblePoints, picksPerWeek = 5, trials = 3000) {
   if (weeksRemaining <= 0) {
     const sorted = [...standings].sort((a, b) => b.pts - a.pts);
     const result = {};
@@ -38,18 +43,18 @@ function estimatePlayoffOdds(standings, weeksRemaining, trials = 3000) {
   }
 
   const totalPoints = standings.reduce((sum, s) => sum + s.pts, 0);
-  const totalGames = standings.reduce((sum, s) => sum + (s.gamesDecided || 0), 0);
-  const leagueAvgPerPick = totalGames > 0 ? totalPoints / totalGames : 0.5;
+  const totalAvailable = standings.length * possiblePoints;
+  const leagueAvgPerPick = totalAvailable > 0 ? totalPoints / totalAvailable : 0.5;
 
   const meanPerWeek = {};
   const skillUncertaintySD = {};
   standings.forEach((s) => {
-    const n = (s.gamesDecided || 0) + PRIOR_WEIGHT;
+    const n = possiblePoints + PRIOR_WEIGHT;
     const blended = (s.pts + PRIOR_WEIGHT * leagueAvgPerPick) / n;
-    meanPerWeek[s.user_id] = blended * 5; // 5 picks per week
+    meanPerWeek[s.user_id] = blended * picksPerWeek;
     // How uncertain are we about this person's TRUE rate, not just this
-    // week's luck? Shrinks as more of their real picks get decided.
-    skillUncertaintySD[s.user_id] = Math.sqrt(0.25 / n) * 5;
+    // week's luck? Shrinks as more weeks go by.
+    skillUncertaintySD[s.user_id] = Math.sqrt(0.25 / n) * picksPerWeek;
   });
 
   const madePlayoffs = Object.fromEntries(standings.map((s) => [s.user_id, 0]));
@@ -80,6 +85,8 @@ export default function PlayoffsPage() {
   const [standings, setStandings] = useState([]);
   const [weeksPlayed, setWeeksPlayed] = useState(0);
   const [weeksRemaining, setWeeksRemaining] = useState(0);
+  const [possiblePoints, setPossiblePoints] = useState(0);
+  const [picksPerWeek, setPicksPerWeek] = useState(5);
   const [seeds, setSeeds] = useState([]);
 
   const load = async () => {
@@ -91,6 +98,8 @@ export default function PlayoffsPage() {
       setSeeds(data.seeds || []);
       setWeeksPlayed(data.weeksPlayed || 0);
       setWeeksRemaining(data.weeksRemaining || 0);
+      setPossiblePoints(data.possiblePoints || 0);
+      setPicksPerWeek(data.picksPerWeek || 5);
       setStandings(data.standings || []);
     } catch {
       setLoadError(true);
@@ -107,7 +116,7 @@ export default function PlayoffsPage() {
     </>
   );
 
-  const odds = estimatePlayoffOdds(standings, weeksRemaining);
+  const odds = estimatePlayoffOdds(standings, weeksRemaining, possiblePoints, picksPerWeek);
   const bracketSeed = (n) => seeds.find((s) => s.playoff_seed === n)?.display_name || `Seed ${n}`;
 
   return (
