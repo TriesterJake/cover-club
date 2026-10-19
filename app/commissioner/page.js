@@ -52,6 +52,8 @@ export default function CommissionerPage() {
   const [warning, setWarning] = useState(null);
   const [addEmail, setAddEmail] = useState("");
   const [addError, setAddError] = useState(null);
+  const [addInfo, setAddInfo] = useState(null);
+  const [invites, setInvites] = useState([]);
   const [confirmDeleteText, setConfirmDeleteText] = useState("");
   const router = useRouter();
 
@@ -129,22 +131,48 @@ export default function CommissionerPage() {
     const { data: leagueMembers } = await supabase.from("league_members").select("user_id, role, playoff_seed, profiles(display_name, email)").eq("league_id", membership.league_id);
     setMembers((leagueMembers || []).map((m) => ({ user_id: m.user_id, display_name: m.profiles?.display_name, email: m.profiles?.email, role: m.role, playoff_seed: m.playoff_seed })));
 
+    try {
+      const res = await authedFetch("/api/commissioner/invites");
+      if (res.ok) setInvites((await res.json()).invites || []);
+    } catch {}
+
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
   const addMemberByEmail = async () => {
-    setAddError(null);
-    if (!addEmail) return;
-    const { data: profile } = await supabase.from("profiles").select("id, display_name").eq("email", addEmail.trim()).maybeSingle();
-    if (!profile) {
-      setAddError("No one's signed in with that email yet -- have them visit the site and sign in once first, then try again.");
-      return;
-    }
-    const { error } = await supabase.from("league_members").insert({ league_id: leagueId, user_id: profile.id, role: "member" });
-    if (error) { setAddError(error.message); return; }
+    setAddError(null); setAddInfo(null);
+    if (!addEmail.trim()) return;
+    const res = await authedFetch("/api/commissioner/add-member", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: addEmail }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) { setAddError(body.error || "Something went wrong"); return; }
+    setAddInfo(body.status === "added"
+      ? "Added -- they already had an account, so they're in the league now."
+      : "Invited. Tell them to open the site, choose \"Create an account\" with that email, and pick a password.");
     setAddEmail("");
     load();
+  };
+
+  const removeInvite = async (id) => {
+    await authedFetch(`/api/commissioner/invites?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    load();
+  };
+
+  const resetPassword = async (userId, name) => {
+    const pw = window.prompt(`Set a temporary password for ${name || "this person"} (at least 8 characters). Tell them to change it on their Profile page.`);
+    if (!pw) return;
+    if (pw.length < 8) { alert("Password must be at least 8 characters."); return; }
+    const res = await authedFetch("/api/commissioner/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, password: pw }),
+    });
+    const body = await res.json().catch(() => ({}));
+    alert(res.ok ? "Password updated." : (body.error || "Something went wrong"));
   };
 
   const removeMember = async (userId) => {
@@ -277,15 +305,30 @@ export default function CommissionerPage() {
             {members.map((m) => (
               <div className="cc-leaguepickrow" key={m.user_id}>
                 <span>{m.display_name} {m.role === "commissioner" && <span className="cc-badge" style={{ marginLeft: 6, marginBottom: 0 }}>commissioner</span>}</span>
-                {m.user_id !== myId && <button className="cc-namelink" onClick={() => removeMember(m.user_id)}>Remove</button>}
+                <span>
+                  <button className="cc-namelink" style={{ marginRight: 12 }} onClick={() => resetPassword(m.user_id, m.display_name)}>Reset password</button>
+                  {m.user_id !== myId && <button className="cc-namelink" onClick={() => removeMember(m.user_id)}>Remove</button>}
+                </span>
               </div>
             ))}
+            {invites.length > 0 && (
+              <>
+                <div className="cc-hiddennote" style={{ marginTop: 14 }}>Invited, haven't created an account yet:</div>
+                {invites.map((i) => (
+                  <div className="cc-leaguepickrow" key={i.id}>
+                    <span>{i.email}</span>
+                    <button className="cc-namelink" onClick={() => removeInvite(i.id)}>Cancel invite</button>
+                  </div>
+                ))}
+              </>
+            )}
             <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
               <input placeholder="family.member@email.com" value={addEmail} onChange={(e) => setAddEmail(e.target.value)} style={{ padding: 8, flex: 1, minWidth: 200 }} />
               <button className="cc-savebtn" onClick={addMemberByEmail}>Add member</button>
             </div>
             {addError && <div className="cc-warning">{addError}</div>}
-            <p className="cc-hiddennote">They need to have visited the site and signed in at least once before you can add them by email.</p>
+            {addInfo && <div className="cc-savedbanner" style={{ marginTop: 10 }}>{addInfo}</div>}
+            <p className="cc-hiddennote">Add their email, then they open the site, tap &ldquo;Create an account&rdquo; with that same email, and choose a password. No confirmation email needed.</p>
           </div>
         </details>
 
